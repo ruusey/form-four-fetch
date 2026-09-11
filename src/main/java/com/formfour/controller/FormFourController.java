@@ -66,6 +66,21 @@ public class FormFourController {
     }
 
     /**
+     * Kick off a throttled backfill of every Form 4 filed in the last
+     * {@code days} days (default 30) via the EDGAR daily index. Returns
+     * immediately; already-saved filings are skipped.
+     */
+    @PostMapping("/backfill/recent")
+    public ResponseEntity<Map<String, Object>> backfillRecent(
+            @RequestParam(defaultValue = "30") int days) {
+        boolean started = backfill.startRecent(days);
+        return ResponseEntity.ok(Map.of(
+                "started", started,
+                "days", days,
+                "message", started ? "Recent backfill started" : "A backfill is already running"));
+    }
+
+    /**
      * Kick off a throttled historical backfill for one issuer to seed its
      * anomaly baseline. Accepts a CIK or a ticker symbol. Returns immediately.
      */

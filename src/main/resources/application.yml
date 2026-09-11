@@ -35,12 +35,20 @@ formfour:
 
   # --- Historical backfill (seeds baselines; stays well under SEC 10 req/s) ---
   backfill:
-    # Extra pause between filings, on top of request-delay-ms above.
+    # Per-issuer backfill: extra pause between filings, on top of request-delay-ms.
     delay-ms: 400
-    # Filings pulled per run when the caller doesn't specify a max.
+    # Per-issuer backfill: filings pulled per run when no max is given.
     default-max: 100
-    # Absolute ceiling per run regardless of requested amount.
+    # Per-issuer backfill: absolute ceiling per run regardless of requested amount.
     hard-cap: 500
+    # Recent-days backfill (daily index): pause between filing fetches (ms).
+    # ~250ms => ~4 req/s, comfortably under SEC's 10/s limit.
+    recent-delay-ms: 250
+    # Auto-backfill this many days of Form 4s on startup (0 = disabled).
+    # ~1,000 Form 4s/business day; 30d ≈ 23k filings ≈ 1.5-2h first run, then
+    # resumable (already-saved filings are skipped cheaply). Trigger on demand
+    # instead via POST /api/form4/backfill/recent?days=30.
+    startup-days: 0
 
   # --- Discord webhook (posts every new Form 4; abnormal ones flagged red) ---
   discord:
