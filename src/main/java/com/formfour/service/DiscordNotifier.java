@@ -89,22 +89,37 @@ public class DiscordNotifier {
      */
     public int sendTest() {
         if (!active()) return -2;
+        ObjectNode p = json.createObjectNode();
+        p.put("content", "✅ form-four-fetch webhook test — notifications are working.");
+        return postPayload(p);
+    }
+
+    /** Post one real filing as a format preview. Returns the Discord status. */
+    public int sendSample(OwnershipDocument doc) {
+        if (!active()) return -2;
+        if (doc == null) return sendTest();
+        ObjectNode p = json.createObjectNode();
+        p.put("content", "🔎 Format preview — latest stored Form 4:");
+        p.putArray("embeds").add(buildEmbed(doc));
+        return postPayload(p);
+    }
+
+    /** POST a payload to the webhook; returns the HTTP status, or -1 on error. */
+    private int postPayload(ObjectNode payload) {
         try {
-            ObjectNode p = json.createObjectNode();
-            p.put("content", "✅ form-four-fetch webhook test — notifications are working.");
             HttpRequest req = HttpRequest.newBuilder(URI.create(webhookUrl))
                     .header("Content-Type", "application/json")
                     .timeout(Duration.ofSeconds(15))
-                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(p)))
+                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(payload)))
                     .build();
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
-                log.warn("Discord test -> {} : {}", resp.statusCode(),
+                log.warn("Discord -> {} : {}", resp.statusCode(),
                         resp.body().substring(0, Math.min(200, resp.body().length())));
             }
             return resp.statusCode();
         } catch (Exception e) {
-            log.warn("Discord test failed: {}", e.getMessage());
+            log.warn("Discord post failed: {}", e.getMessage());
             return -1;
         }
     }
@@ -181,54 +196,47 @@ public class DiscordNotifier {
                 : List.of();
 
         ObjectNode embed = json.createObjectNode();
-        String prefix = abnormal ? "⚠️ " : "";
-        embed.put("title", prefix + ticker + " — " + issuer);
-        embed.put("url", edgarUrl(doc));
+        embed.put("title", (abnormal ? "⚠️ " : "") + ticker + " — " + issuer);
         embed.put("color", colorFor(doc, legs));
 
-        StringBuilder desc = new StringBuilder();
-        desc.append("**").append(owner).append("**");
-        if (!role.isBlank()) desc.append(" · ").append(role);
-        if (doc.getTransactionValue() != null && doc.getTransactionValue().signum() != 0) {
-            desc.append("\nTotal transaction value: **").append(money(doc.getTransactionValue())).append("**");
-        }
-        embed.put("description", desc.toString());
-
-        ArrayNode fields = embed.putArray("fields");
+        StringBuilder d = new StringBuilder();
+        d.append("**").append(owner).append("**");
+        if (!role.isBlank()) d.append(" · ").append(role);
+        if (doc.getPeriodOfReport() != null) d.append(" · ").append(doc.getPeriodOfReport());
 
         if (abnormal) {
             String reasons = doc.getAnomalyReasons() == null ? "" : doc.getAnomalyReasons().stream()
                     .filter(r -> r != UnusualTxReasonCode.NORMAL && r != UnusualTxReasonCode.INSUFFICIENT_HISTORY)
                     .map(DiscordNotifier::humanReason)
                     .collect(Collectors.joining(", "));
-            ObjectNode f = fields.addObject();
-            f.put("name", "⚠️ Anomaly score: " + Math.round(doc.getAnomalyScore()) + "/100");
-            f.put("value", reasons.isBlank() ? "Outside this ticker's normal range" : reasons);
-            f.put("inline", false);
+            d.append("\n\n⚠️ **ABNORMAL — score ").append(Math.round(doc.getAnomalyScore())).append("/100**");
+            d.append("\nReasons: ").append(reasons.isBlank() ? "outside this ticker's normal range" : reasons);
         }
 
-        int shown = 0;
+        int shown = 0, coded = countCodedLegs(legs);
         for (NonDerivativeTransaction tx : legs) {
             String code = tx.transactionCoding != null ? tx.transactionCoding.transactionCode : null;
             if (code == null) continue;
             if (shown >= MAX_LEGS_SHOWN) {
-                ObjectNode more = fields.addObject();
-                more.put("name", "…");
-                more.put("value", "+" + (countCodedLegs(legs) - shown) + " more transaction(s)");
-                more.put("inline", false);
+                d.append("\n… +").append(coded - shown).append(" more transaction(s)");
                 break;
             }
-            String shares = value(tx.transactionAmounts != null && tx.transactionAmounts.transactionShares != null
-                    ? tx.transactionAmounts.transactionShares.value : null);
-            String price = tx.transactionAmounts != null && tx.transactionAmounts.transactionPricePerShare != null
-                    ? tx.transactionAmounts.transactionPricePerShare.value : null;
-            ObjectNode f = fields.addObject();
-            f.put("name", verb(code) + "  " + shares + (price != null ? " @ " + money(price) : ""));
-            f.put("value", tx.transactionValue != null && tx.transactionValue.signum() != 0
-                    ? money(tx.transactionValue) : "​");
-            f.put("inline", true);
+            d.append("\n\n").append(legLine(tx, code));
             shown++;
         }
+        if (coded == 0) d.append("\n\n_(no non-derivative buy/sell legs)_");
+
+        if (doc.getTransactionValue() != null && doc.getTransactionValue().signum() != 0) {
+            d.append("\n\n**Total: ").append(money(doc.getTransactionValue())).append("**");
+        }
+
+        int deriv = doc.getDerivativeTable() != null && doc.getDerivativeTable().derivativeTransaction != null
+                ? doc.getDerivativeTable().derivativeTransaction.size() : 0;
+        if (deriv > 0) d.append("\n_+ ").append(deriv).append(" derivative transaction(s)_");
+
+        String desc = d.toString();
+        if (desc.length() > 4000) desc = desc.substring(0, 4000) + "…";
+        embed.put("description", desc);
 
         ObjectNode footer = embed.putObject("footer");
         footer.put("text", abnormal ? "Form 4 · flagged abnormal" : "Form 4");
@@ -237,6 +245,35 @@ public class DiscordNotifier {
 
         return embed;
     }
+
+    /** One fully-detailed line of raw transaction data. */
+    private static String legLine(NonDerivativeTransaction tx, String code) {
+        var amt = tx.transactionAmounts;
+        double shares = amt != null && amt.transactionShares != null ? parse(amt.transactionShares.value) : 0;
+        double price = amt != null && amt.transactionPricePerShare != null ? parse(amt.transactionPricePerShare.value) : 0;
+        double val = tx.transactionValue != null ? tx.transactionValue.doubleValue() : shares * price;
+        String ad = amt != null && amt.transactionAcquiredDisposedCode != null ? amt.transactionAcquiredDisposedCode.value : null;
+        boolean hasAfter = tx.postTransactionAmounts != null
+                && tx.postTransactionAmounts.sharesOwnedFollowingTransaction != null;
+        double after = hasAfter ? parse(tx.postTransactionAmounts.sharesOwnedFollowingTransaction.value) : 0;
+        String sec = tx.securityTitle != null && tx.securityTitle.value != null ? tx.securityTitle.value : null;
+
+        String emoji = "P".equals(code) ? "🟢" : "S".equals(code) ? "🔴" : "⚪";
+        StringBuilder s = new StringBuilder();
+        s.append(emoji).append(" **").append(verb(code)).append("** ")
+                .append(i(shares)).append(" sh @ $").append(p(price)).append(" = **$").append(i(val)).append("**");
+        StringBuilder meta = new StringBuilder();
+        if ("D".equals(ad)) meta.append("disposed");
+        else if ("A".equals(ad)) meta.append("acquired");
+        if (hasAfter) meta.append(meta.length() > 0 ? " · " : "").append("owned after: ").append(i(after)).append(" sh");
+        if (sec != null) meta.append(meta.length() > 0 ? " · " : "").append(sec);
+        if (meta.length() > 0) s.append("\n   ↳ ").append(meta);
+        return s.toString();
+    }
+
+    private static String i(double d) { return String.format("%,.0f", d); }
+
+    private static String p(double d) { return String.format("%,.2f", d); }
 
     // --- helpers ---
 
@@ -324,16 +361,6 @@ public class DiscordNotifier {
         return "1".equals(s) || "true".equalsIgnoreCase(s);
     }
 
-    private static String edgarUrl(OwnershipDocument doc) {
-        String acc = doc.getId(); // now the accession (no dashes)
-        String cik = doc.getIssuer() != null ? doc.getIssuer().issuerCik : null;
-        if (acc == null || acc.length() != 18 || cik == null || cik.isBlank()) {
-            return "https://www.sec.gov/cgi-bin/browse-edgar";
-        }
-        return "https://www.sec.gov/Archives/edgar/data/" + Integer.parseInt(cik) + "/" + acc
-                + "/" + FormFourService.withDashes(acc) + "-index.htm";
-    }
-
     private static String isoTimestamp(String periodOfReport) {
         if (periodOfReport == null || !periodOfReport.matches("\\d{4}-\\d{2}-\\d{2}")) return null;
         return periodOfReport + "T00:00:00.000Z";
@@ -346,15 +373,6 @@ public class DiscordNotifier {
         } catch (Exception e) {
             return 2_000L;
         }
-    }
-
-    private static String value(String s) {
-        double d = parse(s);
-        return d == 0 && (s == null || s.isBlank()) ? "?" : String.format("%,.0f sh", d);
-    }
-
-    private static String money(String s) {
-        return "$" + String.format("%,.2f", parse(s));
     }
 
     private static String money(BigDecimal b) {

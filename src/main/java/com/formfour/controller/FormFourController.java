@@ -69,10 +69,11 @@ public class FormFourController {
         return formFour.tickersWithData();
     }
 
-    /** Send a test message to the configured Discord webhook. */
+    /** Send a preview of the latest stored filing (or a plain test) to Discord. */
     @PostMapping("/discord/test")
     public ResponseEntity<Map<String, Object>> discordTest() {
-        int s = discord.sendTest();
+        var page = formFour.getSaved(0, 1);
+        int s = page.hasContent() ? discord.sendSample(page.getContent().get(0)) : discord.sendTest();
         String msg = s == -2 ? "Discord disabled — no webhook configured (set it in local.yml)"
                 : s == -1 ? "Send failed — see server logs"
                 : (s / 100 == 2 ? "Sent OK (" + s + ") — check your channel" : "Discord returned " + s);
