@@ -84,9 +84,29 @@ public class BackfillService {
     /** False until the startup backfill (+ recompute) finishes; gates live collection. */
     private volatile boolean readyToCollect = false;
 
+    // --- live progress (exposed via status(), logged as it runs) ---
+    private volatile String phase = "starting"; // starting | backfilling | recomputing | ready
+    private volatile int daysTotal = 0, daysDone = 0;
+    private volatile long fetchedCount = 0, skippedCount = 0;
+    private volatile String currentDay = "";
+
     /** Whether the poller may begin collecting live filings. */
     public boolean isReadyToCollect() {
         return readyToCollect;
+    }
+
+    /** Snapshot of backfill/recompute progress for the UI header + monitoring. */
+    public java.util.Map<String, Object> status() {
+        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("ready", readyToCollect);
+        m.put("running", running.get());
+        m.put("phase", phase);
+        m.put("daysDone", daysDone);
+        m.put("daysTotal", daysTotal);
+        m.put("fetched", fetchedCount);
+        m.put("skipped", skippedCount);
+        m.put("currentDay", currentDay);
+        return m;
     }
 
     /**
@@ -103,10 +123,12 @@ public class BackfillService {
         final int cap = max;
         worker.submit(() -> {
             try {
+                phase = "backfilling";
                 run(cik, cap);
             } catch (Exception e) {
                 log.error("Backfill for CIK {} failed: {}", cik, e.getMessage());
             } finally {
+                phase = readyToCollect ? "ready" : "starting";
                 running.set(false);
             }
         });
@@ -122,6 +144,7 @@ public class BackfillService {
     @Order(3)
     public void onStartup() {
         if (startupDays <= 0) {
+            phase = "ready";
             readyToCollect = true; // nothing to wait for
             return;
         }
@@ -131,10 +154,13 @@ public class BackfillService {
         worker.submit(() -> {
             try {
                 runRecent(startupDays);
+                phase = "recomputing";
+                log.info("Backfill: rebuilding baselines + re-scoring all filings chronologically…");
                 anomaly.recomputeAll(); // rebuild baselines + re-score in date order
             } catch (Exception e) {
                 log.error("Startup backfill failed: {}", e.getMessage());
             } finally {
+                phase = "ready";
                 readyToCollect = true;
                 running.set(false);
                 log.info("Startup backfill complete — live collection enabled");
@@ -150,10 +176,12 @@ public class BackfillService {
         }
         worker.submit(() -> {
             try {
+                phase = "recomputing";
                 anomaly.recomputeAll();
             } catch (Exception e) {
                 log.error("Recompute failed: {}", e.getMessage());
             } finally {
+                phase = readyToCollect ? "ready" : "starting";
                 running.set(false);
             }
         });
@@ -177,6 +205,7 @@ public class BackfillService {
             } catch (Exception e) {
                 log.error("Recent backfill ({}d) failed: {}", window, e.getMessage());
             } finally {
+                phase = readyToCollect ? "ready" : "starting";
                 running.set(false);
             }
         });
@@ -189,12 +218,19 @@ public class BackfillService {
 
     private void runRecent(int days) {
         LocalDate today = LocalDate.now();
+        phase = "backfilling";
+        daysTotal = days;
+        daysDone = 0;
+        fetchedCount = 0;
+        skippedCount = 0;
+        currentDay = "";
         log.info("Recent backfill: scanning last {} days of the EDGAR daily index "
                 + "(already-saved filings are skipped)", days);
-        int fetched = 0, skipped = 0, daysWithData = 0;
+        int daysWithData = 0;
 
         for (int offset = 1; offset <= days; offset++) {
             LocalDate day = today.minusDays(offset);
+            currentDay = day.toString();
             int qtr = (day.getMonthValue() - 1) / 3 + 1;
             String stamp = String.format("%04d%02d%02d", day.getYear(), day.getMonthValue(), day.getDayOfMonth());
             String url = String.format(DAILY_INDEX_URL, day.getYear(), qtr, stamp);
@@ -205,31 +241,42 @@ public class BackfillService {
             } catch (Exception e) {
                 // Weekends/holidays have no daily index — expected, skip quietly.
                 log.debug("No daily index for {} (weekend/holiday?)", day);
+                daysDone = offset;
                 continue;
             }
             daysWithData++;
 
             List<String[]> form4s = parseForm4Rows(index); // [cik, accessionNoDashes]
-            log.info("Recent backfill: {} — {} Form 4 filings", day, form4s.size());
+            log.info("Backfill day {}/{} ({}): {} Form 4 filings [{} fetched, {} skipped so far]",
+                    offset, days, day, form4s.size(), fetchedCount, skippedCount);
 
+            int inDay = 0;
             for (String[] row : form4s) {
                 String cik = row[0];
                 String accNoDashes = row[1];
                 String id = cik + "-" + accNoDashes;
                 if (formFour.exists(id)) { // resumable: no re-fetch, no throttle sleep
-                    skipped++;
+                    skippedCount++;
+                    inDay++;
                     continue;
                 }
                 try {
-                    if (formFour.getFormFour(cik, accNoDashes) != null) fetched++;
+                    if (formFour.getFormFour(cik, accNoDashes) != null) fetchedCount++;
                 } catch (Exception e) {
-                    log.warn("Recent backfill: failed {} — {}", id, e.getMessage());
+                    log.warn("Backfill: failed {} — {}", id, e.getMessage());
+                }
+                inDay++;
+                // Periodic heartbeat within a busy day so progress is visible.
+                if (inDay % 100 == 0) {
+                    log.info("Backfill day {}/{} ({}): {}/{} filings · totals {} fetched, {} skipped",
+                            offset, days, day, inDay, form4s.size(), fetchedCount, skippedCount);
                 }
                 sleep(recentDelayMs); // gentle pacing on real fetches only
             }
+            daysDone = offset;
         }
         log.info("Recent backfill complete: {} days with data, {} fetched, {} already present",
-                daysWithData, fetched, skipped);
+                daysWithData, fetchedCount, skippedCount);
     }
 
     /** Extract [cik, accessionNoDashes] for every Form 4 / 4-A row in a master.idx. */

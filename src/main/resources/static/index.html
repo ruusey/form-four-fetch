@@ -83,6 +83,7 @@
     <div class="chip">Tickers w/ data<b id="st-tickers">—</b></div>
     <div class="chip red">Anomalies<b id="st-anom">—</b></div>
   </div>
+  <div class="chip" id="bf-pill" title="Backfill / baseline status">⏳ starting…</div>
   <div class="spacer"></div>
   <div class="ws"><span class="dot" id="ws-dot"></span><span id="ws-label">live: off</span></div>
   <button class="btn ghost" id="ws-btn" onclick="toggleWs()">Connect live</button>
@@ -456,9 +457,23 @@ function connectWs(){
 function disconnectWs(){ if(stomp)try{stomp.disconnect();}catch{} stomp=null; setWs('','off'); $('ws-btn').textContent='Connect live'; }
 function setWs(s,l){ $('ws-dot').className='dot'+(s?' '+s:''); $('ws-label').textContent='live: '+l; }
 
+// --- backfill status pill ---
+async function loadBackfill(){
+  try{ renderBf(await api('/api/form4/backfill/status')); }catch(e){}
+}
+function renderBf(s){
+  const el=$('bf-pill');
+  if(s.ready && !s.running){ el.style.color='var(--green)'; el.innerHTML='✅ Ready · live collecting'; return; }
+  el.style.color='var(--amber)';
+  if(s.phase==='recomputing'){ el.innerHTML='⏳ Recomputing baselines…'; }
+  else if(s.phase==='backfilling'){ el.innerHTML=`⏳ Backfilling day ${s.daysDone||0}/${s.daysTotal||'?'}${s.currentDay?' ('+s.currentDay+')':''} · ${num(s.fetched||0)} fetched`; }
+  else { el.innerHTML='⏳ '+(s.phase||'starting…'); }
+}
+
 // --- init ---
 renderInto('live-tbl', live, liveState);
-loadStats(); loadTickers(); setInterval(loadStats, 30000);
+loadStats(); loadTickers(); loadBackfill();
+setInterval(loadStats, 30000); setInterval(loadBackfill, 4000);
 </script>
 </body>
 </html>

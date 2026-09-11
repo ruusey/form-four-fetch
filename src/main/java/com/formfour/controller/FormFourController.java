@@ -68,6 +68,12 @@ public class FormFourController {
         return formFour.tickersWithData();
     }
 
+    /** Backfill/recompute progress for the dashboard header + monitoring. */
+    @GetMapping("/backfill/status")
+    public Map<String, Object> backfillStatus() {
+        return backfill.status();
+    }
+
     /** Rebuild baselines chronologically and re-score all filings (background). */
     @PostMapping("/anomaly/recompute")
     public ResponseEntity<Map<String, Object>> recompute() {

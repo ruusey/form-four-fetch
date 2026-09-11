@@ -41,9 +41,10 @@ formfour:
     default-max: 100
     # Per-issuer backfill: absolute ceiling per run regardless of requested amount.
     hard-cap: 500
-    # Recent-days backfill (daily index): pause between filing fetches (ms).
-    # ~250ms => ~4 req/s, comfortably under SEC's 10/s limit.
-    recent-delay-ms: 250
+    # Recent-days backfill (daily index): pause between filing fetches (ms), on
+    # top of request-delay-ms (150). ~100ms => ~4 req/s effective. The hard
+    # floor is request-delay-ms itself (~6.6 req/s); set 0 to run at that floor.
+    recent-delay-ms: 100
     # Auto-backfill this many days of Form 4s on startup (0 = disabled).
     # ~1,000 Form 4s/business day; 30d ≈ 23k filings ≈ 1.5-2h first run, then
     # resumable (already-saved filings are skipped cheaply), so later boots are

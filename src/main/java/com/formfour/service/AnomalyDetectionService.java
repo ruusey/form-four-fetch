@@ -128,6 +128,8 @@ public class AnomalyDetectionService {
             if (!p.getContent().isEmpty()) filings.saveAll(p.getContent());
             total += p.getNumberOfElements();
             page++;
+            log.info("Recompute progress: {}/{} filings re-scored, {} baselines so far",
+                    total, p.getTotalElements(), cache.size());
         } while (p.hasNext());
 
         baselines.deleteAll();
