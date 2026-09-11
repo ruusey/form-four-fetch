@@ -68,7 +68,10 @@ public class FormFourService {
      * Fetch a Form 4 by CIK + accession (no dashes). Caches in Mongo.
      */
     public OwnershipDocument getFormFour(String cik, String accessionNoDashes) {
-        String id = cik + "-" + accessionNoDashes;
+        // Key by accession alone — it's globally unique per filing. The same
+        // Form 4 is indexed under the issuer AND every reporting owner's CIK, so
+        // keying by cik+accession would store one filing many times over.
+        String id = accessionNoDashes;
         Optional<OwnershipDocument> cached = repo.findById(id);
         if (cached.isPresent()) {
             log.debug("Form4 cache hit: {}", id);
@@ -103,7 +106,7 @@ public class FormFourService {
             String txt = fetchSubmissionTxt(cik, accessionNoDashes);
             OwnershipDocument doc = parseFormFour(txt);
             if (doc != null) {
-                doc.setId(cik + "-" + accessionNoDashes);
+                doc.setId(accessionNoDashes);
                 if (doc.getIssuer() != null) {
                     doc.setFilingEntity(doc.getIssuer().issuerTradingSymbol == null
                             ? cik : doc.getIssuer().issuerTradingSymbol);

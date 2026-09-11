@@ -2,7 +2,9 @@ package com.formfour.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -227,6 +229,7 @@ public class BackfillService {
         log.info("Recent backfill: scanning last {} days of the EDGAR daily index "
                 + "(already-saved filings are skipped)", days);
         int daysWithData = 0;
+        Set<String> seenAccessions = new HashSet<>(); // one filing is listed under many CIKs
 
         for (int offset = 1; offset <= days; offset++) {
             LocalDate day = today.minusDays(offset);
@@ -254,8 +257,8 @@ public class BackfillService {
             for (String[] row : form4s) {
                 String cik = row[0];
                 String accNoDashes = row[1];
-                String id = cik + "-" + accNoDashes;
-                if (formFour.exists(id)) { // resumable: no re-fetch, no throttle sleep
+                if (!seenAccessions.add(accNoDashes)) continue; // same filing under another CIK
+                if (formFour.exists(accNoDashes)) { // resumable: no re-fetch, no throttle sleep
                     skippedCount++;
                     inDay++;
                     continue;
@@ -263,7 +266,7 @@ public class BackfillService {
                 try {
                     if (formFour.getFormFour(cik, accNoDashes) != null) fetchedCount++;
                 } catch (Exception e) {
-                    log.warn("Backfill: failed {} — {}", id, e.getMessage());
+                    log.warn("Backfill: failed {} — {}", accNoDashes, e.getMessage());
                 }
                 inDay++;
                 // Periodic heartbeat within a busy day so progress is visible.

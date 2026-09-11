@@ -287,14 +287,13 @@ public class DiscordNotifier {
     }
 
     private static String edgarUrl(OwnershipDocument doc) {
-        String id = doc.getId();
-        if (id == null) return "https://www.sec.gov/cgi-bin/browse-edgar";
-        int idx = id.lastIndexOf('-');
-        if (idx < 0) return "https://www.sec.gov/cgi-bin/browse-edgar";
-        String cik = id.substring(0, idx);
-        String accNoDashes = id.substring(idx + 1);
-        return "https://www.sec.gov/Archives/edgar/data/" + cik + "/" + accNoDashes
-                + "/" + FormFourService.withDashes(accNoDashes) + "-index.htm";
+        String acc = doc.getId(); // now the accession (no dashes)
+        String cik = doc.getIssuer() != null ? doc.getIssuer().issuerCik : null;
+        if (acc == null || acc.length() != 18 || cik == null || cik.isBlank()) {
+            return "https://www.sec.gov/cgi-bin/browse-edgar";
+        }
+        return "https://www.sec.gov/Archives/edgar/data/" + Integer.parseInt(cik) + "/" + acc
+                + "/" + FormFourService.withDashes(acc) + "-index.htm";
     }
 
     private static String isoTimestamp(String periodOfReport) {

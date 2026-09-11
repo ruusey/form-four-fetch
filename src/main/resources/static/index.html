@@ -239,7 +239,7 @@ function fields(d){
   const shares = ps.reduce((a,t)=>a+Number((t.transactionAmounts&&t.transactionAmounts.transactionShares&&t.transactionAmounts.transactionShares.value)||0),0);
   const owner = (d.reportingOwner&&d.reportingOwner[0]&&d.reportingOwner[0].reportingOwnerId&&d.reportingOwner[0].reportingOwnerId.rptOwnerName)||'Unknown';
   return {
-    _doc:d, id:d.id,
+    _doc:d, id:d.id, cik:(d.issuer&&d.issuer.issuerCik)||'',
     ticker:d.filingEntity||(d.issuer&&d.issuer.issuerTradingSymbol)||'?',
     issuer:(d.issuer&&d.issuer.issuerName)||'',
     owner, role:roleOf(d), date:d.periodOfReport||'',
@@ -257,10 +257,10 @@ function roleOf(d){
   if(t(r.isTenPercentOwner))p.push('10%'); if(t(r.isOther))p.push(r.otherText||'Other');
   return p.join(', ');
 }
-function edgarLink(id){
-  if(!id||typeof id!=='string')return null; const i=id.lastIndexOf('-'); if(i<0)return null;
-  const cik=id.slice(0,i), acc=id.slice(i+1); if(acc.length!==18)return null;
-  return `https://www.sec.gov/Archives/edgar/data/${cik}/${acc}/${acc.slice(0,10)}-${acc.slice(10,12)}-${acc.slice(12)}-index.htm`;
+function edgarLink(cik, acc){
+  if(!cik||!acc)return null; const a=String(acc); if(a.length!==18)return null;
+  const c=parseInt(cik,10); if(!c)return null;
+  return `https://www.sec.gov/Archives/edgar/data/${c}/${a}/${a.slice(0,10)}-${a.slice(10,12)}-${a.slice(12)}-index.htm`;
 }
 function scoreCell(s){
   if(s==null) return '<span class="score lo">—</span>';
@@ -321,7 +321,7 @@ function detailHtml(r){
     const cls=c==='P'?'p':c==='S'?'s':'';
     return `<span class="leg"><span class="${cls}">${VERB[c]||('Code '+c)}</span> ${sh?num(sh)+' sh':''}${pr?' @ $'+num(pr):''}${tx.transactionValue?' · '+money(tx.transactionValue):''}</span>`;
   }).join('');
-  const link = edgarLink(r.id);
+  const link = edgarLink(r.cik, r.id);
   return `<div class="detail-body">
     ${r.reasons.length?`<div class="reasons">⚠️ ${r.reasons.join(', ')}${r.score!=null?` · score ${Math.round(r.score)}/100`:''}</div>`:''}
     <div class="legs">${legs||'<span class="hint">No P/S legs</span>'}</div>
@@ -395,7 +395,7 @@ async function loadRecent(){
     if(!b.length){ $('recent-tbl').innerHTML='<div class="empty">Feed empty.</div>'; return; }
     const body=b.map(e=>`<tr class="row"><td><b>${e.formType}</b></td><td>${escapeHtml(e.title||'')}</td><td>${e.cik}</td>
       <td>${e.accessionDashed}</td><td>${e.filedAt||''}</td>
-      <td><a href="${edgarLink(e.cik+'-'+e.accessionNoDashes)}" target="_blank" rel="noopener">EDGAR ↗</a></td></tr>`).join('');
+      <td><a href="${edgarLink(e.cik, e.accessionNoDashes)}" target="_blank" rel="noopener">EDGAR ↗</a></td></tr>`).join('');
     $('recent-tbl').innerHTML=`<table><thead><tr><th>Form</th><th>Title</th><th>CIK</th><th>Accession</th><th>Filed</th><th>Link</th></tr></thead><tbody>${body}</tbody></table>`;
   }catch(e){ $('recent-tbl').innerHTML=`<div class="err">${e.message}</div>`; }
 }

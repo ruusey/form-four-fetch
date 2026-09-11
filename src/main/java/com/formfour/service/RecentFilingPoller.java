@@ -111,7 +111,9 @@ public class RecentFilingPoller {
     }
 
     private String key(FilingFeedEntry e) {
-        return e.getCik() + "-" + e.getAccessionNoDashes();
+        // Accession is unique per filing; the same one is listed under the
+        // issuer and every reporting owner, so dedupe on accession alone.
+        return e.getAccessionNoDashes();
     }
 
     private void logTransactions(OwnershipDocument doc) {
