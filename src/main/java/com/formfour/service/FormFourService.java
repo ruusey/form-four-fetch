@@ -40,6 +40,9 @@ public class FormFourService {
     @Autowired
     private FormFourRepository repo;
 
+    @Autowired
+    private AnomalyDetectionService anomaly;
+
     private final XmlMapper xmlMapper = new XmlMapper();
     private final ObjectMapper jsonMapper;
 
@@ -74,6 +77,7 @@ public class FormFourService {
             if (doc.getIssuer() != null) {
                 doc.setFilingEntity(Optional.ofNullable(doc.getIssuer().issuerTradingSymbol).orElse(cik));
             }
+            anomaly.score(doc); // scores P/S legs + rolls the ticker baseline forward
             repo.save(doc);
             log.info("Fetched + saved Form4 {} in {}ms", id, Instant.now().toEpochMilli() - start);
             return doc;
@@ -153,6 +157,11 @@ public class FormFourService {
     public java.util.List<OwnershipDocument> getSavedByEntity(String entity, int page) {
         Pageable p = PageRequest.of(page, 40, Sort.by("periodOfReport").descending());
         return repo.findAllByFilingEntity(entity, p);
+    }
+
+    public Page<OwnershipDocument> getAnomalies(double minScore, int page, int size) {
+        return repo.findByAnomalyScoreGreaterThanEqualOrderByAnomalyScoreDesc(
+                minScore, PageRequest.of(page, size));
     }
 
     public boolean exists(String id) {

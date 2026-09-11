@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.formfour.dto.UnusualTxReasonCode;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -48,4 +49,12 @@ public class OwnershipDocument {
 
     private BigDecimal transactionValue;
     private String filingEntity;
+
+    // --- Anomaly detection (Tier-1 per-ticker baseline) ---
+    /** 0-100; how far the most abnormal P/S leg is from this ticker's baseline. */
+    private Double anomalyScore;
+    /** Human-readable reasons the score is elevated. */
+    private List<UnusualTxReasonCode> anomalyReasons;
+    /** Epoch millis when scoring last ran. */
+    private Long scoredAt;
 }

@@ -41,6 +41,13 @@ public class FilingFeedService {
     private static final Pattern UPDATED_PATTERN = Pattern.compile(
             "<updated>([^<]+)</updated>");
 
+    // The atom entry carries the real form type here, e.g.
+    // <category scheme="..." label="form type" term="4"/>. We must read this
+    // rather than trust the feed URL: EDGAR's getcurrent treats type=4 as a
+    // PREFIX match, so the feed also returns 424B2, 40-F, 497, 485BPOS, etc.
+    private static final Pattern CATEGORY_TERM_PATTERN = Pattern.compile(
+            "<category[^>]*\\bterm=\"([^\"]+)\"");
+
     private final EdgarClient edgar;
 
     @Value("${formfour.poll-count:40}")
@@ -61,16 +68,30 @@ public class FilingFeedService {
         List<FilingFeedEntry> result = new ArrayList<>();
         // Crude split on <entry> — robust enough for the EDGAR feed shape.
         String[] entries = atom.split("<entry>");
+        int skipped = 0;
         for (int i = 1; i < entries.length; i++) {
             String chunk = entries[i];
             Matcher link = LINK_PATTERN.matcher(chunk);
             if (!link.find()) continue;
+
+            // Keep only genuine Form 4 / 4/A entries; drop the prefix-matched
+            // noise (424B2, 40-F, ...) before it ever costs a submission fetch.
+            String formType = firstGroup(CATEGORY_TERM_PATTERN, chunk);
+            if (!"4".equals(formType) && !"4/A".equals(formType)) {
+                skipped++;
+                continue;
+            }
+
             String cik = link.group(1);
             String accNoDashes = link.group(2);
             String accDashed = link.group(3);
             String title = firstGroup(TITLE_PATTERN, chunk);
             String updated = firstGroup(UPDATED_PATTERN, chunk);
-            result.add(new FilingFeedEntry(cik, accNoDashes, accDashed, "4", updated, title));
+            result.add(new FilingFeedEntry(cik, accNoDashes, accDashed, formType, updated, title));
+        }
+        if (skipped > 0) {
+            log.debug("Feed: kept {} Form 4 entries, skipped {} non-Form-4 (prefix-matched) entries",
+                    result.size(), skipped);
         }
         return result;
     }
