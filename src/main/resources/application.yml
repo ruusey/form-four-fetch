@@ -46,9 +46,10 @@ formfour:
     recent-delay-ms: 250
     # Auto-backfill this many days of Form 4s on startup (0 = disabled).
     # ~1,000 Form 4s/business day; 30d ≈ 23k filings ≈ 1.5-2h first run, then
-    # resumable (already-saved filings are skipped cheaply). Trigger on demand
-    # instead via POST /api/form4/backfill/recent?days=30.
-    startup-days: 0
+    # resumable (already-saved filings are skipped cheaply), so later boots are
+    # fast. Set to 0 to disable and trigger on demand via
+    # POST /api/form4/backfill/recent?days=N instead.
+    startup-days: 30
 
   # --- Discord webhook (posts every new Form 4; abnormal ones flagged red) ---
   discord:
