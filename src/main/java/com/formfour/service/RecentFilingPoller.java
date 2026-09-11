@@ -44,6 +44,9 @@ public class RecentFilingPoller {
     @Autowired
     private IssuerInfoService issuerInfo;
 
+    @Autowired
+    private DiscordNotifier discord;
+
     private final Set<String> seen = new LinkedHashSet<>();
     private boolean primed = false;
 
@@ -95,17 +98,20 @@ public class RecentFilingPoller {
         }
         log.info("Poll: feed had {} entries, {} new Form 4s", entries.size(), fresh.size());
 
+        java.util.List<OwnershipDocument> posted = new java.util.ArrayList<>();
         for (FilingFeedEntry e : fresh) {
             try {
                 OwnershipDocument doc = formFour.getFormFour(e.getCik(), e.getAccessionNoDashes());
                 if (doc != null) {
                     broker.convertAndSend("/topic/filings", doc);
                     logTransactions(doc);
+                    posted.add(doc);
                 }
             } catch (Exception ex) {
                 log.error("Failed to handle filing {}: {}", e.getAccessionDashed(), ex.getMessage());
             }
         }
+        discord.notifyFilings(posted); // batched + throttled; abnormal legs flagged
     }
 
     private String key(FilingFeedEntry e) {

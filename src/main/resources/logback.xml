@@ -5,6 +5,26 @@
         </encoder>
     </appender>
 
+    <!-- Dedicated rolling file for transactions outside a ticker's trained
+         normal range, so abnormal activity can be alerted on / grepped
+         independently of normal traffic. -->
+    <appender name="ABNORMAL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/abnormal-transactions.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/abnormal-transactions.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>90</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ABNORMAL_TX also stays on the console (additivity=true) so it's visible
+         in the live log, but is additionally captured to its own file. -->
+    <logger name="ABNORMAL_TX" level="WARN" additivity="true">
+        <appender-ref ref="ABNORMAL_FILE" />
+    </logger>
+
     <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>

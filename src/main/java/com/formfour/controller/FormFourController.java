@@ -1,20 +1,24 @@
 package com.formfour.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.formfour.dto.FilingFeedEntry;
 import com.formfour.model.OwnershipDocument;
+import com.formfour.service.BackfillService;
 import com.formfour.service.FilingFeedService;
 import com.formfour.service.FormFourService;
+import com.formfour.service.TickerMapService;
 
 @RestController
 @RequestMapping("/api/form4")
@@ -22,6 +26,8 @@ public class FormFourController {
 
     @Autowired private FormFourService formFour;
     @Autowired private FilingFeedService feed;
+    @Autowired private BackfillService backfill;
+    @Autowired private TickerMapService tickerMap;
 
     @GetMapping
     public Page<OwnershipDocument> list(
@@ -48,5 +54,41 @@ public class FormFourController {
     @GetMapping("/recent")
     public List<FilingFeedEntry> recent() {
         return feed.fetchRecent();
+    }
+
+    /** Filings whose most abnormal P/S leg scored at or above {@code minScore}. */
+    @GetMapping("/anomalies")
+    public Page<OwnershipDocument> anomalies(
+            @RequestParam(defaultValue = "60") double minScore,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return formFour.getAnomalies(minScore, page, size);
+    }
+
+    /**
+     * Kick off a throttled historical backfill for one issuer to seed its
+     * anomaly baseline. Accepts a CIK or a ticker symbol. Returns immediately.
+     */
+    @PostMapping("/backfill/{cikOrTicker}")
+    public ResponseEntity<Map<String, Object>> backfill(
+            @PathVariable String cikOrTicker,
+            @RequestParam(required = false) Integer max) {
+        String cik = resolveCik(cikOrTicker);
+        if (cik == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "started", false, "error", "Unknown ticker: " + cikOrTicker));
+        }
+        boolean started = backfill.start(cik, max);
+        return ResponseEntity.ok(Map.of(
+                "started", started,
+                "cik", cik,
+                "message", started ? "Backfill started" : "A backfill is already running"));
+    }
+
+    private String resolveCik(String cikOrTicker) {
+        if (cikOrTicker.matches("\\d+")) return cikOrTicker;
+        return tickerMap.byTicker(cikOrTicker)
+                .map(TickerMapService.TickerEntry::getCik)
+                .orElse(null);
     }
 }

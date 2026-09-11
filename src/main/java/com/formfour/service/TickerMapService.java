@@ -36,6 +36,7 @@ public class TickerMapService {
 
     private final ObjectMapper json = new ObjectMapper();
     private volatile Map<String, TickerEntry> byCik = Map.of();
+    private volatile Map<String, TickerEntry> byTicker = Map.of();
 
     @EventListener(ApplicationReadyEvent.class)
     @Order(1)
@@ -45,15 +46,21 @@ public class TickerMapService {
             JsonNode root = json.readTree(body);
             JsonNode data = root.path("data");
             Map<String, TickerEntry> map = new HashMap<>(data.size() * 2);
+            Map<String, TickerEntry> tickerMap = new HashMap<>(data.size() * 2);
             for (JsonNode row : data) {
                 if (row.size() < 4) continue;
                 String cik = row.get(0).asText();
                 String name = row.get(1).asText();
                 String ticker = row.get(2).asText();
                 String exchange = row.get(3).asText();
-                map.put(cik, new TickerEntry(cik, ticker, name, exchange));
+                TickerEntry entry = new TickerEntry(cik, ticker, name, exchange);
+                map.put(cik, entry);
+                if (ticker != null && !ticker.isBlank()) {
+                    tickerMap.put(ticker.toUpperCase(), entry);
+                }
             }
             this.byCik = map;
+            this.byTicker = tickerMap;
             log.info("Loaded SEC ticker map: {} tradeable issuers", map.size());
         } catch (Exception e) {
             log.error("Failed to load SEC ticker map: {}", e.getMessage());
@@ -74,6 +81,11 @@ public class TickerMapService {
         } catch (NumberFormatException e) {
             return Optional.empty();
         }
+    }
+
+    public Optional<TickerEntry> byTicker(String ticker) {
+        if (ticker == null) return Optional.empty();
+        return Optional.ofNullable(byTicker.get(ticker.toUpperCase()));
     }
 
     public boolean isTradeable(String cik) {

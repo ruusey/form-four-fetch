@@ -19,4 +19,7 @@ public interface FormFourRepository extends MongoRepository<OwnershipDocument, S
     Page<OwnershipDocument> findByFilingEntityWithValueGreaterThan(String filingEntity, BigDecimal value, Pageable page);
 
     List<OwnershipDocument> findAllByFilingEntity(String filingEntity, Pageable page);
+
+    Page<OwnershipDocument> findByAnomalyScoreGreaterThanEqualOrderByAnomalyScoreDesc(
+            double minScore, Pageable page);
 }
