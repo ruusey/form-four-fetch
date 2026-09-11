@@ -22,4 +22,6 @@ public interface FormFourRepository extends MongoRepository<OwnershipDocument, S
 
     Page<OwnershipDocument> findByAnomalyScoreGreaterThanEqualOrderByAnomalyScoreDesc(
             double minScore, Pageable page);
+
+    long countByAnomalyScoreGreaterThan(double value);
 }

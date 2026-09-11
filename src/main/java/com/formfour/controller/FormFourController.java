@@ -56,6 +56,27 @@ public class FormFourController {
         return feed.fetchRecent();
     }
 
+    /** Dashboard summary counts (total filings, tickers with data, flagged anomalies). */
+    @GetMapping("/stats")
+    public Map<String, Object> stats() {
+        return formFour.stats();
+    }
+
+    /** Tickers that have observed buys/sells, most-active first. */
+    @GetMapping("/tickers")
+    public List<com.formfour.dto.TickerSummary> tickers() {
+        return formFour.tickersWithData();
+    }
+
+    /** Rebuild baselines chronologically and re-score all filings (background). */
+    @PostMapping("/anomaly/recompute")
+    public ResponseEntity<Map<String, Object>> recompute() {
+        boolean started = backfill.startRecompute();
+        return ResponseEntity.ok(Map.of(
+                "started", started,
+                "message", started ? "Recompute started" : "A backfill/recompute is already running"));
+    }
+
     /** Filings whose most abnormal P/S leg scored at or above {@code minScore}. */
     @GetMapping("/anomalies")
     public Page<OwnershipDocument> anomalies(

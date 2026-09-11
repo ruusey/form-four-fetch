@@ -3,6 +3,10 @@ package com.formfour.service;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,8 +23,11 @@ import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.type.LogicalType;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.formfour.dto.TickerSummary;
 import com.formfour.model.OwnershipDocument;
+import com.formfour.model.TickerBaseline;
 import com.formfour.repo.FormFourRepository;
+import com.formfour.repo.TickerBaselineRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,6 +49,9 @@ public class FormFourService {
 
     @Autowired
     private AnomalyDetectionService anomaly;
+
+    @Autowired
+    private TickerBaselineRepository baselines;
 
     private final XmlMapper xmlMapper = new XmlMapper();
     private final ObjectMapper jsonMapper;
@@ -162,6 +172,29 @@ public class FormFourService {
     public Page<OwnershipDocument> getAnomalies(double minScore, int page, int size) {
         return repo.findByAnomalyScoreGreaterThanEqualOrderByAnomalyScoreDesc(
                 minScore, PageRequest.of(page, size));
+    }
+
+    /** Tickers that have observed buys/sells, most-active first (for search/dropdowns). */
+    public List<TickerSummary> tickersWithData() {
+        Map<String, long[]> agg = new LinkedHashMap<>();
+        for (TickerBaseline b : baselines.findAll()) {
+            long[] bs = agg.computeIfAbsent(b.getTicker(), k -> new long[2]);
+            if ("P".equals(b.getDirection())) bs[0] += b.getCount();
+            else if ("S".equals(b.getDirection())) bs[1] += b.getCount();
+        }
+        List<TickerSummary> out = new ArrayList<>(agg.size());
+        agg.forEach((t, bs) -> out.add(new TickerSummary(t, bs[0], bs[1])));
+        out.sort((a, b) -> Long.compare(b.getTotal(), a.getTotal()));
+        return out;
+    }
+
+    /** Dashboard summary counts. */
+    public Map<String, Object> stats() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("totalFilings", repo.count());
+        m.put("tickersWithData", tickersWithData().size());
+        m.put("flaggedAnomalies", repo.countByAnomalyScoreGreaterThan(0.0));
+        return m;
     }
 
     public boolean exists(String id) {

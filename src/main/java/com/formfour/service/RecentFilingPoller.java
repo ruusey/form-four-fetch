@@ -47,40 +47,25 @@ public class RecentFilingPoller {
     @Autowired
     private DiscordNotifier discord;
 
+    @Autowired
+    private BackfillService backfill;
+
     private final Set<String> seen = new LinkedHashSet<>();
     private boolean primed = false;
 
-    @EventListener(ApplicationReadyEvent.class)
-    @Order(2)
-    public void prime() {
-        log.info("Priming RecentFilingPoller with current feed snapshot...");
-        var entries = feed.fetchRecent();
-        for (FilingFeedEntry entry : entries) {
-            seen.add(key(entry));
-        }
-
-        log.info("=== Last {} Form 4 filings (preview, not persisted) ===",
-                Math.min(5, entries.size()));
-        int previewed = 0;
-        for (FilingFeedEntry entry : entries) {
-            if (previewed >= 5) break;
-            OwnershipDocument doc = formFour.fetchTransient(entry.getCik(), entry.getAccessionNoDashes());
-            if (doc != null) {
-                logTransactions(doc);
-                previewed++;
-            }
-        }
-        log.info("=== End preview ===");
-
-        primed = true;
-        log.info("Primed with {} filings; will poll for new entries", seen.size());
-    }
-
     @Scheduled(fixedDelayString = "${formfour.poll-interval-ms:30000}")
     public void poll() {
-        if (!primed) return;
+        // Hold off until the startup backfill (+ chronological recompute) is done,
+        // so baselines are correct before we start scoring live filings.
+        if (!backfill.isReadyToCollect()) {
+            log.debug("Waiting for startup backfill to finish before collecting…");
+            return;
+        }
+
         var entries = feed.fetchRecent();
         if (entries.isEmpty()) return;
+
+        boolean firstPass = !primed; // first poll after ready = catch-up on the current feed
 
         Set<FilingFeedEntry> fresh = new HashSet<>();
         for (FilingFeedEntry e : entries) {
@@ -93,10 +78,12 @@ public class RecentFilingPoller {
         trimSeen();
 
         if (fresh.isEmpty()) {
+            primed = true;
             log.info("Poll: feed had {} entries, no new Form 4s since last poll", entries.size());
             return;
         }
-        log.info("Poll: feed had {} entries, {} new Form 4s", entries.size(), fresh.size());
+        log.info("{}: feed had {} entries, {} to process",
+                firstPass ? "Startup catch-up" : "Poll", entries.size(), fresh.size());
 
         java.util.List<OwnershipDocument> posted = new java.util.ArrayList<>();
         for (FilingFeedEntry e : fresh) {
@@ -111,7 +98,16 @@ public class RecentFilingPoller {
                 log.error("Failed to handle filing {}: {}", e.getAccessionDashed(), ex.getMessage());
             }
         }
-        discord.notifyFilings(posted); // batched + throttled; abnormal legs flagged
+
+        if (firstPass) {
+            // Persist the backlog quietly — don't blast Discord with everything
+            // that piled up during the backfill window.
+            primed = true;
+            log.info("Startup catch-up complete: {} filing(s) persisted from current feed "
+                    + "(Discord suppressed for the backlog)", posted.size());
+        } else {
+            discord.notifyFilings(posted); // batched + throttled; abnormal legs flagged
+        }
     }
 
     private String key(FilingFeedEntry e) {

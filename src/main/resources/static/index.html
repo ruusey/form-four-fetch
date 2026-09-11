@@ -3,353 +3,462 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Form 4 Fetch — API Explorer</title>
+<title>Form 4 Fetch — Dashboard</title>
 <style>
   :root {
-    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --border: #2a2f3a;
-    --text: #e6e8ec; --muted: #9aa3b2; --accent: #3498db; --green: #2ecc71;
-    --orange: #e67e22; --red: #e74c3c; --code: #11141a;
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a; --border2:#363c49;
+    --text:#e6e8ec; --muted:#9aa3b2; --accent:#3498db; --green:#2ecc71; --orange:#e67e22;
+    --red:#e74c3c; --amber:#f1c40f; --code:#0b0e13;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-    background: var(--bg); color: var(--text); line-height: 1.45;
-  }
-  header {
-    padding: 18px 24px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-  }
-  header h1 { font-size: 18px; margin: 0; }
-  header .sub { color: var(--muted); font-size: 13px; }
-  .wrap { display: grid; grid-template-columns: 340px 1fr; gap: 0; min-height: calc(100vh - 61px); }
-  .sidebar { border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; }
-  .main { padding: 20px 24px; overflow-y: auto; }
-  .card {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px; margin-bottom: 14px;
-  }
-  .card h3 { margin: 0 0 4px; font-size: 14px; }
-  .card .path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
-  .method { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 6px; }
-  .method.get { background: #14324a; color: #7fc4f0; }
-  .method.post { background: #3a2a14; color: #f0b87f; }
-  label { display: block; font-size: 11px; color: var(--muted); margin: 8px 0 3px; }
-  input {
-    width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text);
-    border-radius: 6px; padding: 7px 9px; font-size: 13px;
-  }
-  .row { display: flex; gap: 8px; }
-  .row > div { flex: 1; }
-  button {
-    background: var(--accent); color: #fff; border: 0; border-radius: 6px;
-    padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 10px;
-  }
-  button:hover { filter: brightness(1.1); }
-  button.danger { background: var(--red); }
-  button.ghost { background: var(--panel2); border: 1px solid var(--border); color: var(--text); }
-  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-  .status { font-size: 12px; color: var(--muted); }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 5px; }
-  .dot.on { background: var(--green); }
-  .dot.err { background: var(--red); }
-  .filing {
-    background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--accent);
-    border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;
-  }
-  .filing.buy { border-left-color: var(--green); }
-  .filing.sell { border-left-color: var(--orange); }
-  .filing.abnormal { border-left-color: var(--red); background: #22171a; }
-  .filing .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-  .filing .tkr { font-weight: 700; font-size: 15px; }
-  .filing .iss { color: var(--muted); font-size: 12px; font-weight: 400; }
-  .filing .owner { font-size: 13px; margin: 2px 0 6px; }
-  .badge { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
-  .badge.red { background: var(--red); color: #fff; }
-  .legs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-  .leg { font-size: 12px; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; }
-  .leg .p { color: var(--green); } .leg .s { color: var(--orange); }
-  .meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
-  a { color: var(--accent); }
-  details { margin-top: 8px; }
-  summary { cursor: pointer; font-size: 12px; color: var(--muted); }
-  pre { background: var(--code); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; font-size: 12px; max-height: 420px; }
-  .empty { color: var(--muted); font-size: 13px; padding: 20px 0; }
-  .err { color: var(--red); }
-  .count { color: var(--muted); font-size: 12px; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); font-size:14px; }
+  header { padding:12px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; white-space:nowrap; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:5px 11px; font-size:12px; }
+  .chip b { font-size:15px; display:block; }
+  .chip.red b { color:var(--red); }
+  .chip.green b { color:var(--green); }
+  .spacer { flex:1; }
+  .ws { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); }
+  .dot.on { background:var(--green); } .dot.err { background:var(--red); }
+  nav { display:flex; gap:2px; padding:0 20px; border-bottom:1px solid var(--border); background:var(--panel); overflow-x:auto; }
+  nav button { background:none; border:0; color:var(--muted); padding:11px 15px; font-size:13px; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+  nav button:hover { color:var(--text); }
+  nav button.active { color:var(--text); border-bottom-color:var(--accent); }
+  main { padding:18px 20px; }
+  .controls { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:14px; }
+  .field { display:flex; flex-direction:column; gap:3px; }
+  .field label { font-size:11px; color:var(--muted); }
+  input, select { background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:7px 9px; font-size:13px; min-width:90px; }
+  button.btn { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:8px 13px; font-size:13px; font-weight:600; cursor:pointer; }
+  button.btn:hover { filter:brightness(1.1); }
+  button.btn.ghost { background:var(--panel2); border:1px solid var(--border); color:var(--text); }
+  button.btn.danger { background:var(--red); }
+  .hint { font-size:12px; color:var(--muted); }
+  .pager { display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .pager span { font-size:12px; color:var(--muted); }
+
+  table { width:100%; border-collapse:collapse; }
+  thead th { position:sticky; top:0; background:var(--panel2); text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); padding:9px 10px; border-bottom:1px solid var(--border2); cursor:pointer; user-select:none; white-space:nowrap; }
+  thead th.no-sort { cursor:default; }
+  thead th .arr { color:var(--accent); }
+  tbody td { padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px; }
+  tbody tr.row:hover { background:var(--panel); cursor:pointer; }
+  tbody tr.abn { background:rgba(231,76,60,.08); }
+  tbody tr.abn:hover { background:rgba(231,76,60,.14); }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .tag { font-size:11px; font-weight:700; padding:1px 7px; border-radius:10px; }
+  .tag.buy { background:rgba(46,204,113,.15); color:var(--green); }
+  .tag.sell { background:rgba(230,126,34,.15); color:var(--orange); }
+  .tag.mixed { background:rgba(52,152,219,.15); color:var(--accent); }
+  .tag.other { background:var(--panel2); color:var(--muted); }
+  .score { font-weight:700; }
+  .score.hi { color:var(--red); } .score.mid { color:var(--amber); } .score.lo { color:var(--muted); }
+  tr.detail td { background:var(--code); padding:0; }
+  .detail-body { padding:12px 14px; }
+  .legs { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
+  .leg { font-size:12px; background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:3px 8px; }
+  .leg .p { color:var(--green); } .leg .s { color:var(--orange); }
+  .reasons { color:var(--red); font-size:12px; margin:4px 0; }
+  pre { background:var(--code); border:1px solid var(--border); border-radius:8px; padding:10px; overflow:auto; font-size:11px; max-height:340px; margin:6px 0 0; }
+  a { color:var(--accent); }
+  .empty { color:var(--muted); padding:26px 0; text-align:center; }
+  .err { color:var(--red); padding:10px 0; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; max-width:520px; }
+  .card h3 { margin:0 0 10px; font-size:14px; }
+  .card .field { margin-bottom:10px; }
+  .table-wrap { border:1px solid var(--border); border-radius:10px; overflow:auto; max-height:calc(100vh - 260px); }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
 </style>
 </head>
 <body>
 <header>
   <h1>📄 Form 4 Fetch</h1>
-  <span class="sub">SEC insider-trade API explorer · anomaly detection · live feed</span>
+  <div class="chips">
+    <div class="chip">Filings<b id="st-filings">—</b></div>
+    <div class="chip">Tickers w/ data<b id="st-tickers">—</b></div>
+    <div class="chip red">Anomalies<b id="st-anom">—</b></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="ws"><span class="dot" id="ws-dot"></span><span id="ws-label">live: off</span></div>
+  <button class="btn ghost" id="ws-btn" onclick="toggleWs()">Connect live</button>
 </header>
 
-<div class="wrap">
-  <aside class="sidebar">
+<nav>
+  <button data-tab="live" class="active" onclick="showTab('live')">🔴 Live feed</button>
+  <button data-tab="browse" onclick="showTab('browse')">📋 Browse filings</button>
+  <button data-tab="anomalies" onclick="showTab('anomalies')">⚠️ Anomalies</button>
+  <button data-tab="tickers" onclick="showTab('tickers')">🔎 Tickers</button>
+  <button data-tab="recent" onclick="showTab('recent')">🕓 Recent feed</button>
+  <button data-tab="lookup" onclick="showTab('lookup')">🔗 Lookup</button>
+  <button data-tab="admin" onclick="showTab('admin')">⚙️ Admin</button>
+</nav>
+
+<main>
+  <!-- LIVE -->
+  <section id="tab-live" class="tab-panel active">
+    <div class="controls">
+      <div class="hint">Connect the live feed to stream new Form 4s as they're collected. Newest first, last 100 kept.</div>
+      <div class="spacer"></div>
+      <button class="btn ghost" onclick="live=[];renderInto('live-tbl',live,liveState)">Clear</button>
+    </div>
+    <div class="table-wrap"><div id="live-tbl"></div></div>
+  </section>
+
+  <!-- BROWSE -->
+  <section id="tab-browse" class="tab-panel">
+    <div class="controls">
+      <div class="field"><label>Ticker (optional)</label>
+        <input id="br-ticker" list="ticker-list" placeholder="all tickers"></div>
+      <div class="field"><label>Direction</label>
+        <select id="br-dir"><option value="">All</option><option value="BUY">Buys</option><option value="SELL">Sells</option><option value="MIXED">Mixed</option></select></div>
+      <div class="field"><label>Min score</label><input id="br-min" type="number" value="0" min="0" max="100" style="width:80px"></div>
+      <div class="field"><label>Page size</label>
+        <select id="br-size"><option>25</option><option selected>50</option><option>100</option></select></div>
+      <button class="btn" onclick="browse.page=0;loadBrowse()">Load</button>
+      <div class="hint">Direction/score filter the loaded page. Click a header to sort, a row to expand.</div>
+    </div>
+    <div class="table-wrap"><div id="browse-tbl"><div class="empty">Click Load.</div></div></div>
+    <div class="pager">
+      <button class="btn ghost" onclick="if(browse.page>0){browse.page--;loadBrowse()}">‹ Prev</button>
+      <span id="browse-page">—</span>
+      <button class="btn ghost" onclick="browse.page++;loadBrowse()">Next ›</button>
+    </div>
+  </section>
+
+  <!-- ANOMALIES -->
+  <section id="tab-anomalies" class="tab-panel">
+    <div class="controls">
+      <div class="field"><label>Min score</label><input id="an-min" type="number" value="60" min="0" max="100" style="width:80px"></div>
+      <div class="field"><label>Page size</label>
+        <select id="an-size"><option>25</option><option selected>50</option><option>100</option></select></div>
+      <button class="btn" onclick="anom.page=0;loadAnomalies()">Load</button>
+      <div class="hint">Sorted by score (highest first). Click a row to see why it flagged.</div>
+    </div>
+    <div class="table-wrap"><div id="anom-tbl"><div class="empty">Click Load.</div></div></div>
+    <div class="pager">
+      <button class="btn ghost" onclick="if(anom.page>0){anom.page--;loadAnomalies()}">‹ Prev</button>
+      <span id="anom-page">—</span>
+      <button class="btn ghost" onclick="anom.page++;loadAnomalies()">Next ›</button>
+    </div>
+  </section>
+
+  <!-- TICKERS -->
+  <section id="tab-tickers" class="tab-panel">
+    <div class="controls">
+      <div class="field"><label>Search</label><input id="tk-search" placeholder="filter tickers…" oninput="renderTickers()"></div>
+      <button class="btn ghost" onclick="loadTickers()">Refresh</button>
+      <div class="hint">Click a ticker to browse its filings.</div>
+    </div>
+    <div class="table-wrap"><div id="tickers-tbl"><div class="empty">Loading…</div></div></div>
+  </section>
+
+  <!-- RECENT -->
+  <section id="tab-recent" class="tab-panel">
+    <div class="controls">
+      <button class="btn" onclick="loadRecent()">Fetch EDGAR feed</button>
+      <div class="hint">Live atom feed (parsed, not persisted).</div>
+    </div>
+    <div class="table-wrap"><div id="recent-tbl"><div class="empty">Click Fetch.</div></div></div>
+  </section>
+
+  <!-- LOOKUP -->
+  <section id="tab-lookup" class="tab-panel">
     <div class="card">
-      <h3><span class="method get">GET</span>Saved filings</h3>
-      <div class="path">/api/form4</div>
-      <div class="row">
-        <div><label>page</label><input id="saved-page" type="number" value="0" min="0"></div>
-        <div><label>size</label><input id="saved-size" type="number" value="25" min="1"></div>
+      <h3>Fetch &amp; parse one filing</h3>
+      <div class="field"><label>CIK</label><input id="lk-cik" placeholder="320193"></div>
+      <div class="field"><label>Accession</label><input id="lk-acc" placeholder="0000320193-24-000123"></div>
+      <button class="btn" onclick="loadOne()">Fetch</button>
+    </div>
+    <div id="lookup-out" style="margin-top:14px"></div>
+  </section>
+
+  <!-- ADMIN -->
+  <section id="tab-admin" class="tab-panel">
+    <div style="display:flex; gap:14px; flex-wrap:wrap">
+      <div class="card">
+        <h3>Backfill — last N days</h3>
+        <div class="field"><label>Days</label><input id="ad-days" type="number" value="30" min="1"></div>
+        <button class="btn danger" onclick="adminBackfillRecent()">Start…</button>
+        <div class="hint" style="margin-top:8px">Normally runs automatically on startup.</div>
       </div>
-      <button onclick="loadSaved()">Fetch</button>
-    </div>
-
-    <div class="card">
-      <h3><span class="method get">GET</span>Anomalies</h3>
-      <div class="path">/api/form4/anomalies</div>
-      <label>minScore (0–100)</label><input id="an-min" type="number" value="60" min="0" max="100">
-      <div class="row">
-        <div><label>page</label><input id="an-page" type="number" value="0" min="0"></div>
-        <div><label>size</label><input id="an-size" type="number" value="25" min="1"></div>
+      <div class="card">
+        <h3>Backfill — one issuer</h3>
+        <div class="field"><label>CIK or ticker</label><input id="ad-id" placeholder="AAPL"></div>
+        <div class="field"><label>Max (optional)</label><input id="ad-max" type="number" placeholder="100"></div>
+        <button class="btn danger" onclick="adminBackfillIssuer()">Start…</button>
       </div>
-      <button onclick="loadAnomalies()">Fetch</button>
+      <div class="card">
+        <h3>Recompute anomaly baselines</h3>
+        <div class="hint" style="margin-bottom:10px">Rebuilds every baseline chronologically and re-scores all filings. Run after a big backfill.</div>
+        <button class="btn danger" onclick="adminRecompute()">Recompute…</button>
+      </div>
     </div>
+    <div id="admin-out" style="margin-top:14px"></div>
+  </section>
 
-    <div class="card">
-      <h3><span class="method get">GET</span>By ticker</h3>
-      <div class="path">/api/form4/by-entity/{ticker}</div>
-      <label>ticker</label><input id="ent-ticker" placeholder="AAPL">
-      <label>page</label><input id="ent-page" type="number" value="0" min="0">
-      <button onclick="loadByEntity()">Fetch</button>
-    </div>
+  <details style="margin-top:16px"><summary class="hint">Raw JSON of last response</summary><pre id="raw">—</pre></details>
+</main>
 
-    <div class="card">
-      <h3><span class="method get">GET</span>One filing (fetch + parse)</h3>
-      <div class="path">/api/form4/{cik}/{accession}</div>
-      <label>cik</label><input id="one-cik" placeholder="320193">
-      <label>accession</label><input id="one-acc" placeholder="0000320193-24-000123">
-      <button onclick="loadOne()">Fetch</button>
-    </div>
+<datalist id="ticker-list"></datalist>
 
-    <div class="card">
-      <h3><span class="method get">GET</span>Recent feed (not persisted)</h3>
-      <div class="path">/api/form4/recent</div>
-      <button onclick="loadRecent()">Fetch</button>
-    </div>
-
-    <div class="card">
-      <h3><span class="method post">POST</span>Backfill — last N days</h3>
-      <div class="path">/api/form4/backfill/recent</div>
-      <label>days</label><input id="bf-days" type="number" value="30" min="1">
-      <button class="danger" onclick="backfillRecent()">Start backfill…</button>
-      <div class="meta">Asks for confirmation — kicks off a long throttled job.</div>
-    </div>
-
-    <div class="card">
-      <h3><span class="method post">POST</span>Backfill — one issuer</h3>
-      <div class="path">/api/form4/backfill/{cikOrTicker}</div>
-      <label>cik or ticker</label><input id="bf-id" placeholder="AAPL">
-      <label>max (optional)</label><input id="bf-max" type="number" placeholder="100" min="1">
-      <button class="danger" onclick="backfillIssuer()">Start backfill…</button>
-    </div>
-  </aside>
-
-  <main class="main">
-    <div class="toolbar">
-      <strong id="view-title">Live feed</strong>
-      <span id="view-count" class="count"></span>
-      <span style="flex:1"></span>
-      <span class="status"><span id="ws-dot" class="dot"></span><span id="ws-label">WebSocket: disconnected</span></span>
-      <button class="ghost" id="ws-btn" onclick="toggleWs()">Connect live feed</button>
-      <button class="ghost" onclick="clearOut()">Clear</button>
-    </div>
-    <div id="results"><div class="empty">Pick an endpoint on the left, or connect the live feed to watch new Form 4s arrive.</div></div>
-    <details style="margin-top:16px"><summary>Raw JSON of last response</summary><pre id="raw">—</pre></details>
-  </main>
-</div>
-
-<!-- STOMP over SockJS for the live feed (graceful if CDN is unavailable) -->
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const results = $('results'), raw = $('raw');
+const raw = $('raw');
+function showRaw(d){ raw.textContent = typeof d === 'string' ? d : JSON.stringify(d, null, 2); }
+function escapeHtml(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-function setTitle(t, count) {
-  $('view-title').textContent = t;
-  $('view-count').textContent = count != null ? `· ${count} item${count === 1 ? '' : 's'}` : '';
-}
-function clearOut() { results.innerHTML = '<div class="empty">Cleared.</div>'; raw.textContent = '—'; setTitle('—'); }
-function showRaw(data) { raw.textContent = JSON.stringify(data, null, 2); }
-function showError(e) {
-  results.innerHTML = `<div class="err">Request failed: ${e.message || e}</div>`;
-  raw.textContent = String(e.stack || e);
-}
-
-async function api(path, opts) {
+async function api(path, opts){
   const res = await fetch(path, opts);
   const text = await res.text();
   let body; try { body = text ? JSON.parse(text) : null; } catch { body = text; }
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${typeof body === 'string' ? body : JSON.stringify(body)}`);
+  if(!res.ok) throw new Error(`${res.status} — ${typeof body==='string'?body:JSON.stringify(body)}`);
   return body;
 }
+function pageContent(b){ return Array.isArray(b) ? b : (b && b.content) || []; }
 
-// --- filing rendering ---
-function num(v) { const n = Number(v); return isNaN(n) ? v : n.toLocaleString(); }
-function money(v) { const n = Number(v); return isNaN(n) ? v : '$' + n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
-const VERB = { P:'BUY', S:'SELL', A:'Grant', M:'Exercise', X:'Exercise', C:'Convert', F:'Tax w/h', G:'Gift', D:'Disposed' };
+// --- formatting ---
+function num(v){ const n=Number(v); return isNaN(n)?(v??'—'):n.toLocaleString(); }
+function money(v){ const n=Number(v); return isNaN(n)?'—':'$'+n.toLocaleString(undefined,{maximumFractionDigits:0}); }
+const VERB = {P:'BUY',S:'SELL',A:'Grant',M:'Exercise',X:'Exercise',C:'Convert',F:'Tax w/h',G:'Gift',D:'Disposed'};
 
-function legHtml(tx) {
-  const c = tx.transactionCoding && tx.transactionCoding.transactionCode;
-  const sh = tx.transactionAmounts && tx.transactionAmounts.transactionShares && tx.transactionAmounts.transactionShares.value;
-  const pr = tx.transactionAmounts && tx.transactionAmounts.transactionPricePerShare && tx.transactionAmounts.transactionPricePerShare.value;
-  const cls = c === 'P' ? 'p' : c === 'S' ? 's' : '';
-  const label = VERB[c] || ('Code ' + c);
-  return `<span class="leg"><span class="${cls}">${label}</span> ${sh ? num(sh) + ' sh' : ''}${pr ? ' @ ' + money(pr) : ''}${tx.transactionValue ? ' · ' + money(tx.transactionValue) : ''}</span>`;
-}
-
-function filingHtml(d) {
-  const ticker = d.filingEntity || (d.issuer && d.issuer.issuerTradingSymbol) || '?';
-  const issuer = (d.issuer && d.issuer.issuerName) || '';
-  const owner = (d.reportingOwner && d.reportingOwner[0] && d.reportingOwner[0].reportingOwnerId
-                 && d.reportingOwner[0].reportingOwnerId.rptOwnerName) || 'Unknown filer';
+function fields(d){
   const legs = (d.nonDerivativeTable && d.nonDerivativeTable.nonDerivativeTransaction) || [];
   const coded = legs.filter(t => t.transactionCoding && t.transactionCoding.transactionCode);
-  const abnormal = d.anomalyScore != null && d.anomalyScore > 0;
-  const hasBuy = coded.some(t => t.transactionCoding.transactionCode === 'P');
-  const hasSell = coded.some(t => t.transactionCoding.transactionCode === 'S');
-  let cls = 'filing';
-  if (abnormal) cls += ' abnormal';
-  else if (hasBuy && !hasSell) cls += ' buy';
-  else if (hasSell && !hasBuy) cls += ' sell';
+  const ps = coded.filter(t => ['P','S'].includes(t.transactionCoding.transactionCode));
+  const hasB = ps.some(t=>t.transactionCoding.transactionCode==='P');
+  const hasS = ps.some(t=>t.transactionCoding.transactionCode==='S');
+  const dir = hasB&&hasS ? 'MIXED' : hasB ? 'BUY' : hasS ? 'SELL' : 'OTHER';
+  const shares = ps.reduce((a,t)=>a+Number((t.transactionAmounts&&t.transactionAmounts.transactionShares&&t.transactionAmounts.transactionShares.value)||0),0);
+  const owner = (d.reportingOwner&&d.reportingOwner[0]&&d.reportingOwner[0].reportingOwnerId&&d.reportingOwner[0].reportingOwnerId.rptOwnerName)||'Unknown';
+  return {
+    _doc:d, id:d.id,
+    ticker:d.filingEntity||(d.issuer&&d.issuer.issuerTradingSymbol)||'?',
+    issuer:(d.issuer&&d.issuer.issuerName)||'',
+    owner, role:roleOf(d), date:d.periodOfReport||'',
+    dir, shares, value:Number(d.transactionValue||0),
+    score:d.anomalyScore==null?null:d.anomalyScore,
+    reasons:(d.anomalyReasons||[]).filter(r=>r!=='NORMAL'&&r!=='INSUFFICIENT_HISTORY'),
+    coded
+  };
+}
+function roleOf(d){
+  const r = d.reportingOwner&&d.reportingOwner[0]&&d.reportingOwner[0].reportingOwnerRelationship;
+  if(!r) return '';
+  const p=[]; const t=v=>v==='1'||v===true||v==='true';
+  if(t(r.isDirector))p.push('Dir'); if(t(r.isOfficer))p.push(r.officerTitle||'Officer');
+  if(t(r.isTenPercentOwner))p.push('10%'); if(t(r.isOther))p.push(r.otherText||'Other');
+  return p.join(', ');
+}
+function edgarLink(id){
+  if(!id||typeof id!=='string')return null; const i=id.lastIndexOf('-'); if(i<0)return null;
+  const cik=id.slice(0,i), acc=id.slice(i+1); if(acc.length!==18)return null;
+  return `https://www.sec.gov/Archives/edgar/data/${cik}/${acc}/${acc.slice(0,10)}-${acc.slice(10,12)}-${acc.slice(12)}-index.htm`;
+}
+function scoreCell(s){
+  if(s==null) return '<span class="score lo">—</span>';
+  const cls = s>=60?'hi':s>=30?'mid':'lo';
+  return `<span class="score ${cls}">${Math.round(s)}</span>`;
+}
+function dirTag(dir){ return `<span class="tag ${dir.toLowerCase()}">${dir}</span>`; }
 
-  const link = edgarLink(d.id);
-  return `<div class="${cls}">
-    <div class="head">
-      <div><span class="tkr">${ticker}</span> <span class="iss">${issuer}</span></div>
-      ${abnormal ? `<span class="badge red">⚠️ ANOMALY ${Math.round(d.anomalyScore)}/100</span>` : ''}
-    </div>
-    <div class="owner">${owner}</div>
-    ${abnormal && d.anomalyReasons ? `<div class="meta">Reasons: ${d.anomalyReasons.filter(r => r !== 'NORMAL' && r !== 'INSUFFICIENT_HISTORY').join(', ') || '—'}</div>` : ''}
-    <div class="legs">${coded.map(legHtml).join('') || '<span class="meta">No P/S legs</span>'}</div>
-    <div class="meta">
-      ${d.transactionValue ? 'Total ' + money(d.transactionValue) + ' · ' : ''}
-      ${d.periodOfReport || ''}
-      ${link ? ` · <a href="${link}" target="_blank" rel="noopener">EDGAR ↗</a>` : ''}
-    </div>
-    <details><summary>Raw</summary><pre>${escapeHtml(JSON.stringify(d, null, 2))}</pre></details>
+// --- generic sortable, expandable filing table ---
+const FILING_COLS = [
+  {key:'ticker', label:'Ticker', get:r=>r.ticker, render:r=>`<b>${r.ticker}</b>`},
+  {key:'owner', label:'Filer', get:r=>r.owner, render:r=>`${escapeHtml(r.owner)}<div class="hint">${escapeHtml(r.issuer)}</div>`},
+  {key:'role', label:'Role', get:r=>r.role, render:r=>escapeHtml(r.role)||'—'},
+  {key:'date', label:'Date', get:r=>r.date, render:r=>r.date||'—'},
+  {key:'dir', label:'Dir', get:r=>r.dir, render:r=>dirTag(r.dir)},
+  {key:'shares', label:'Shares', get:r=>r.shares, render:r=>num(r.shares), cls:'num'},
+  {key:'value', label:'Value', get:r=>r.value, render:r=>money(r.value), cls:'num'},
+  {key:'score', label:'Score', get:r=>r.score==null?-1:r.score, render:r=>scoreCell(r.score), cls:'num'},
+];
+
+function renderInto(elId, rows, state){
+  const el = $(elId);
+  if(!rows.length){ el.innerHTML = '<div class="empty">No results.</div>'; return; }
+  const sorted = [...rows].sort((a,b)=>{
+    const av=state.col.get(a), bv=state.col.get(b);
+    let c = typeof av==='number'&&typeof bv==='number' ? av-bv : String(av).localeCompare(String(bv));
+    return state.dir==='asc'?c:-c;
+  });
+  const head = FILING_COLS.map(c=>{
+    const arr = state.col.key===c.key ? `<span class="arr">${state.dir==='asc'?'▲':'▼'}</span>` : '';
+    return `<th data-k="${c.key}" class="${c.cls==='num'?'num':''}">${c.label} ${arr}</th>`;
+  }).join('');
+  const body = sorted.map((r,i)=>{
+    const cells = FILING_COLS.map(c=>`<td class="${c.cls||''}">${c.render(r)}</td>`).join('');
+    return `<tr class="row ${r.score>=60?'abn':''}" data-i="${i}">${cells}</tr>
+            <tr class="detail" id="${elId}-d-${i}" style="display:none"><td colspan="${FILING_COLS.length}"></td></tr>`;
+  }).join('');
+  el.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  el._rows = sorted; el._state = state;
+  el.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k, col=FILING_COLS.find(c=>c.key===k);
+    if(state.col.key===k) state.dir = state.dir==='asc'?'desc':'asc';
+    else { state.col=col; state.dir = (k==='score'||k==='value'||k==='shares')?'desc':'asc'; }
+    renderInto(elId, rows, state);
+  });
+  el.querySelectorAll('tr.row').forEach(tr=>tr.onclick=()=>{
+    const i=tr.dataset.i, d=$(`${elId}-d-${i}`);
+    const open = d.style.display!=='none';
+    if(open){ d.style.display='none'; return; }
+    d.style.display=''; d.firstElementChild.innerHTML = detailHtml(sorted[i]);
+  });
+}
+function detailHtml(r){
+  const legs = r.coded.map(tx=>{
+    const c=tx.transactionCoding.transactionCode;
+    const sh=tx.transactionAmounts&&tx.transactionAmounts.transactionShares&&tx.transactionAmounts.transactionShares.value;
+    const pr=tx.transactionAmounts&&tx.transactionAmounts.transactionPricePerShare&&tx.transactionAmounts.transactionPricePerShare.value;
+    const cls=c==='P'?'p':c==='S'?'s':'';
+    return `<span class="leg"><span class="${cls}">${VERB[c]||('Code '+c)}</span> ${sh?num(sh)+' sh':''}${pr?' @ $'+num(pr):''}${tx.transactionValue?' · '+money(tx.transactionValue):''}</span>`;
+  }).join('');
+  const link = edgarLink(r.id);
+  return `<div class="detail-body">
+    ${r.reasons.length?`<div class="reasons">⚠️ ${r.reasons.join(', ')}${r.score!=null?` · score ${Math.round(r.score)}/100`:''}</div>`:''}
+    <div class="legs">${legs||'<span class="hint">No P/S legs</span>'}</div>
+    ${link?`<a href="${link}" target="_blank" rel="noopener">Open on EDGAR ↗</a>`:''}
+    <details><summary class="hint">Raw JSON</summary><pre>${escapeHtml(JSON.stringify(r._doc,null,2))}</pre></details>
   </div>`;
 }
+function newState(key,dir){ return { col:FILING_COLS.find(c=>c.key===key), dir }; }
 
-function edgarLink(id) {
-  if (!id || typeof id !== 'string') return null;
-  const i = id.lastIndexOf('-');
-  if (i < 0) return null;
-  const cik = id.slice(0, i), acc = id.slice(i + 1);
-  if (acc.length !== 18) return null;
-  const dashed = acc.slice(0,10) + '-' + acc.slice(10,12) + '-' + acc.slice(12);
-  return `https://www.sec.gov/Archives/edgar/data/${cik}/${acc}/${dashed}-index.htm`;
-}
-function escapeHtml(s) { return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+// --- state ---
+let live=[]; const liveState=newState('date','desc');
+const browse={page:0, rows:[], state:newState('date','desc')};
+const anom={page:0, rows:[], state:newState('score','desc')};
+let tickers=[];
 
-function renderFilings(title, docs) {
-  setTitle(title, docs.length);
-  results.innerHTML = docs.length ? docs.map(filingHtml).join('') : '<div class="empty">No results.</div>';
-}
-// A Spring Page has {content, totalElements, number, totalPages}; unwrap it.
-function pageContent(body) { return Array.isArray(body) ? body : (body && body.content) || []; }
-
-// --- endpoint handlers ---
-async function loadSaved() {
-  try {
-    const b = await api(`/api/form4?page=${$('saved-page').value}&size=${$('saved-size').value}`);
-    showRaw(b); renderFilings(`Saved filings (page ${b.number ?? 0}/${(b.totalPages ?? 1) - 1}, ${b.totalElements ?? '?'} total)`, pageContent(b));
-  } catch (e) { showError(e); }
-}
-async function loadAnomalies() {
-  try {
-    const b = await api(`/api/form4/anomalies?minScore=${$('an-min').value}&page=${$('an-page').value}&size=${$('an-size').value}`);
-    showRaw(b); renderFilings(`Anomalies ≥ ${$('an-min').value} (${b.totalElements ?? '?'} total)`, pageContent(b));
-  } catch (e) { showError(e); }
-}
-async function loadByEntity() {
-  const t = $('ent-ticker').value.trim();
-  if (!t) return;
-  try {
-    const b = await api(`/api/form4/by-entity/${encodeURIComponent(t)}?page=${$('ent-page').value}`);
-    showRaw(b); renderFilings(`Filings for ${t.toUpperCase()}`, pageContent(b));
-  } catch (e) { showError(e); }
-}
-async function loadOne() {
-  const cik = $('one-cik').value.trim(), acc = $('one-acc').value.trim();
-  if (!cik || !acc) return;
-  try {
-    const b = await api(`/api/form4/${encodeURIComponent(cik)}/${encodeURIComponent(acc)}`);
-    showRaw(b); renderFilings(`Filing ${cik}/${acc}`, b ? [b] : []);
-  } catch (e) { showError(e); }
-}
-async function loadRecent() {
-  try {
-    const b = await api('/api/form4/recent');
-    showRaw(b);
-    setTitle('Recent feed (parsed, not persisted)', b.length);
-    results.innerHTML = b.length ? b.map(e => `<div class="filing">
-      <div class="head"><div><span class="tkr">Form ${e.formType}</span> <span class="iss">${e.title || ''}</span></div></div>
-      <div class="meta">CIK ${e.cik} · ${e.accessionDashed} · ${e.filedAt || ''}
-        · <a href="${edgarLink(e.cik + '-' + e.accessionNoDashes)}" target="_blank" rel="noopener">EDGAR ↗</a></div>
-    </div>`).join('') : '<div class="empty">Feed empty.</div>';
-  } catch (e) { showError(e); }
-}
-async function backfillRecent() {
-  const days = $('bf-days').value;
-  if (!confirm(`Start a throttled backfill of the last ${days} days of Form 4s?\n\nThis is a long-running background job (~1–2h on first run).`)) return;
-  try {
-    const b = await api(`/api/form4/backfill/recent?days=${days}`, { method: 'POST' });
-    showRaw(b); flashResult(b);
-  } catch (e) { showError(e); }
-}
-async function backfillIssuer() {
-  const id = $('bf-id').value.trim();
-  if (!id) return;
-  const max = $('bf-max').value;
-  if (!confirm(`Start a backfill for "${id}"${max ? ' (max ' + max + ')' : ''}?`)) return;
-  try {
-    const b = await api(`/api/form4/backfill/${encodeURIComponent(id)}${max ? '?max=' + max : ''}`, { method: 'POST' });
-    showRaw(b); flashResult(b);
-  } catch (e) { showError(e); }
-}
-function flashResult(b) {
-  setTitle('Backfill');
-  results.innerHTML = `<div class="filing ${b.started ? 'buy' : 'sell'}">
-    <div class="head"><div class="tkr">${b.started ? '✅ Started' : '⏳ Not started'}</div></div>
-    <div class="meta">${b.message || ''}</div></div>`;
+// --- stats ---
+async function loadStats(){
+  try{ const s=await api('/api/form4/stats');
+    $('st-filings').textContent=num(s.totalFilings);
+    $('st-tickers').textContent=num(s.tickersWithData);
+    $('st-anom').textContent=num(s.flaggedAnomalies);
+  }catch(e){ /* ignore */ }
 }
 
-// --- live WebSocket feed ---
-let stomp = null, live = [];
-function toggleWs() { stomp ? disconnectWs() : connectWs(); }
-function connectWs() {
-  if (typeof SockJS === 'undefined' || typeof Stomp === 'undefined') {
-    setWs('err', 'WebSocket libs unavailable (offline?)'); return;
-  }
-  setWs('', 'connecting…');
-  stomp = Stomp.over(new SockJS('/ws'));
-  stomp.debug = null;
-  stomp.connect({}, () => {
-    setWs('on', 'connected'); $('ws-btn').textContent = 'Disconnect';
-    live = []; setTitle('Live feed', 0);
-    results.innerHTML = '<div class="empty">Connected — waiting for new Form 4 filings…</div>';
-    stomp.subscribe('/topic/filings', msg => {
-      try {
-        const d = JSON.parse(msg.body);
-        live.unshift(d);
-        if (live.length > 100) live.pop();
-        renderFilings('Live feed', live);
-        showRaw(d);
-      } catch (e) { console.error(e); }
-    });
-  }, () => setWs('err', 'connection error'));
+// --- browse ---
+async function loadBrowse(){
+  const t=$('br-ticker').value.trim(), size=$('br-size').value;
+  try{
+    let docs;
+    if(t){ const b=await api(`/api/form4/by-entity/${encodeURIComponent(t)}?page=${browse.page}`); showRaw(b); docs=pageContent(b); $('browse-page').textContent=`${t.toUpperCase()} · page ${browse.page+1}`; }
+    else { const b=await api(`/api/form4?page=${browse.page}&size=${size}`); showRaw(b); docs=pageContent(b); $('browse-page').textContent=`page ${(b.number??0)+1} / ${b.totalPages??'?'} · ${b.totalElements??'?'} total`; }
+    let rows=docs.map(fields);
+    const dir=$('br-dir').value, min=Number($('br-min').value)||0;
+    if(dir) rows=rows.filter(r=>r.dir===dir);
+    if(min>0) rows=rows.filter(r=>(r.score||0)>=min);
+    browse.rows=rows; renderInto('browse-tbl', rows, browse.state);
+  }catch(e){ $('browse-tbl').innerHTML=`<div class="err">${e.message}</div>`; }
 }
-function disconnectWs() {
-  if (stomp) try { stomp.disconnect(); } catch {}
-  stomp = null; setWs('', 'disconnected'); $('ws-btn').textContent = 'Connect live feed';
+
+// --- anomalies ---
+async function loadAnomalies(){
+  const min=$('an-min').value, size=$('an-size').value;
+  try{
+    const b=await api(`/api/form4/anomalies?minScore=${min}&page=${anom.page}&size=${size}`); showRaw(b);
+    const rows=pageContent(b).map(fields);
+    anom.rows=rows; renderInto('anom-tbl', rows, anom.state);
+    $('anom-page').textContent=`page ${(b.number??0)+1} / ${b.totalPages??'?'} · ${b.totalElements??'?'} flagged`;
+  }catch(e){ $('anom-tbl').innerHTML=`<div class="err">${e.message}</div>`; }
 }
-function setWs(state, label) {
-  const dot = $('ws-dot'); dot.className = 'dot' + (state ? ' ' + state : '');
-  $('ws-label').textContent = 'WebSocket: ' + label;
+
+// --- tickers ---
+async function loadTickers(){
+  try{ tickers=await api('/api/form4/tickers'); showRaw(tickers);
+    $('ticker-list').innerHTML = tickers.map(t=>`<option value="${t.ticker}">`).join('');
+    renderTickers();
+  }catch(e){ $('tickers-tbl').innerHTML=`<div class="err">${e.message}</div>`; }
 }
+function renderTickers(){
+  const q=($('tk-search').value||'').toUpperCase();
+  const rows=tickers.filter(t=>t.ticker.toUpperCase().includes(q));
+  if(!rows.length){ $('tickers-tbl').innerHTML='<div class="empty">No tickers'+(q?' match "'+q+'"':' with data yet')+'.</div>'; return; }
+  const body=rows.map(t=>`<tr class="row" onclick="jumpToTicker('${t.ticker}')">
+    <td><b>${t.ticker}</b></td><td class="num">${num(t.buys)}</td><td class="num">${num(t.sells)}</td><td class="num">${num(t.total)}</td></tr>`).join('');
+  $('tickers-tbl').innerHTML=`<table><thead><tr><th>Ticker</th><th class="num">Buys</th><th class="num">Sells</th><th class="num">Total</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+function jumpToTicker(t){ showTab('browse'); $('br-ticker').value=t; browse.page=0; loadBrowse(); }
+
+// --- recent ---
+async function loadRecent(){
+  try{ const b=await api('/api/form4/recent'); showRaw(b);
+    if(!b.length){ $('recent-tbl').innerHTML='<div class="empty">Feed empty.</div>'; return; }
+    const body=b.map(e=>`<tr class="row"><td><b>${e.formType}</b></td><td>${escapeHtml(e.title||'')}</td><td>${e.cik}</td>
+      <td>${e.accessionDashed}</td><td>${e.filedAt||''}</td>
+      <td><a href="${edgarLink(e.cik+'-'+e.accessionNoDashes)}" target="_blank" rel="noopener">EDGAR ↗</a></td></tr>`).join('');
+    $('recent-tbl').innerHTML=`<table><thead><tr><th>Form</th><th>Title</th><th>CIK</th><th>Accession</th><th>Filed</th><th>Link</th></tr></thead><tbody>${body}</tbody></table>`;
+  }catch(e){ $('recent-tbl').innerHTML=`<div class="err">${e.message}</div>`; }
+}
+
+// --- lookup ---
+async function loadOne(){
+  const cik=$('lk-cik').value.trim(), acc=$('lk-acc').value.trim(); if(!cik||!acc)return;
+  try{ const d=await api(`/api/form4/${encodeURIComponent(cik)}/${encodeURIComponent(acc)}`); showRaw(d);
+    if(!d){ $('lookup-out').innerHTML='<div class="empty">Not found.</div>'; return; }
+    const st=newState('date','desc'); $('lookup-out').innerHTML='<div class="table-wrap"><div id="lookup-tbl"></div></div>';
+    renderInto('lookup-tbl',[fields(d)],st);
+  }catch(e){ $('lookup-out').innerHTML=`<div class="err">${e.message}</div>`; }
+}
+
+// --- admin ---
+async function adminBackfillRecent(){
+  const days=$('ad-days').value;
+  if(!confirm(`Backfill the last ${days} days? Long throttled background job.`))return;
+  post(`/api/form4/backfill/recent?days=${days}`);
+}
+async function adminBackfillIssuer(){
+  const id=$('ad-id').value.trim(); if(!id)return; const max=$('ad-max').value;
+  if(!confirm(`Backfill "${id}"${max?' (max '+max+')':''}?`))return;
+  post(`/api/form4/backfill/${encodeURIComponent(id)}${max?'?max='+max:''}`);
+}
+async function adminRecompute(){
+  if(!confirm('Rebuild all baselines and re-score every filing?'))return;
+  post('/api/form4/anomaly/recompute');
+}
+async function post(url){
+  try{ const b=await api(url,{method:'POST'}); showRaw(b);
+    $('admin-out').innerHTML=`<div class="card"><h3>${b.started?'✅ Started':'⏳ Not started'}</h3><div class="hint">${b.message||''}</div></div>`;
+    setTimeout(loadStats, 3000);
+  }catch(e){ $('admin-out').innerHTML=`<div class="err">${e.message}</div>`; }
+}
+
+// --- tabs ---
+const loaders={ tickers:()=>{ if(!tickers.length)loadTickers(); }, browse:()=>{ if(!browse.rows.length)loadBrowse(); },
+                anomalies:()=>{ if(!anom.rows.length)loadAnomalies(); } };
+function showTab(name){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  $('tab-'+name).classList.add('active');
+  if(loaders[name]) loaders[name]();
+}
+
+// --- websocket ---
+let stomp=null;
+function toggleWs(){ stomp?disconnectWs():connectWs(); }
+function connectWs(){
+  if(typeof SockJS==='undefined'||typeof Stomp==='undefined'){ setWs('err','libs unavailable'); return; }
+  setWs('','connecting…');
+  stomp=Stomp.over(new SockJS('/ws')); stomp.debug=null;
+  stomp.connect({},()=>{ setWs('on','connected'); $('ws-btn').textContent='Disconnect';
+    stomp.subscribe('/topic/filings',m=>{ try{ const d=JSON.parse(m.body); live.unshift(fields(d)); if(live.length>100)live.pop();
+      renderInto('live-tbl',live,liveState); loadStats(); }catch(e){} });
+  },()=>setWs('err','error'));
+}
+function disconnectWs(){ if(stomp)try{stomp.disconnect();}catch{} stomp=null; setWs('','off'); $('ws-btn').textContent='Connect live'; }
+function setWs(s,l){ $('ws-dot').className='dot'+(s?' '+s:''); $('ws-label').textContent='live: '+l; }
+
+// --- init ---
+renderInto('live-tbl', live, liveState);
+loadStats(); loadTickers(); setInterval(loadStats, 30000);
 </script>
 </body>
 </html>

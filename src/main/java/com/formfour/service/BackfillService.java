@@ -54,6 +54,9 @@ public class BackfillService {
     @Autowired
     private FormFourService formFour;
 
+    @Autowired
+    private AnomalyDetectionService anomaly;
+
     private final ObjectMapper json = new ObjectMapper();
 
     /** Extra pause between filings, on top of EdgarClient's throttle. */
@@ -78,6 +81,13 @@ public class BackfillService {
         return t;
     });
     private final AtomicBoolean running = new AtomicBoolean(false);
+    /** False until the startup backfill (+ recompute) finishes; gates live collection. */
+    private volatile boolean readyToCollect = false;
+
+    /** Whether the poller may begin collecting live filings. */
+    public boolean isReadyToCollect() {
+        return readyToCollect;
+    }
 
     /**
      * Kick off a backfill for one CIK. Returns immediately; work proceeds on a
@@ -103,14 +113,51 @@ public class BackfillService {
         return true;
     }
 
-    /** Optionally kick off a recent-days backfill once the app is up. */
+    /**
+     * On startup, either run the initial backfill then recompute baselines
+     * chronologically (holding off live collection until it's done), or — if
+     * disabled — let live collection begin immediately.
+     */
     @EventListener(ApplicationReadyEvent.class)
     @Order(3)
     public void onStartup() {
-        if (startupDays > 0) {
-            log.info("Startup backfill enabled: last {} days of Form 4s", startupDays);
-            startRecent(startupDays);
+        if (startupDays <= 0) {
+            readyToCollect = true; // nothing to wait for
+            return;
         }
+        if (!running.compareAndSet(false, true)) return;
+        log.info("Startup backfill enabled: last {} days of Form 4s (live collection held until done)",
+                startupDays);
+        worker.submit(() -> {
+            try {
+                runRecent(startupDays);
+                anomaly.recomputeAll(); // rebuild baselines + re-score in date order
+            } catch (Exception e) {
+                log.error("Startup backfill failed: {}", e.getMessage());
+            } finally {
+                readyToCollect = true;
+                running.set(false);
+                log.info("Startup backfill complete — live collection enabled");
+            }
+        });
+    }
+
+    /** Kick off a chronological baseline rebuild + re-score on the worker thread. */
+    public boolean startRecompute() {
+        if (!running.compareAndSet(false, true)) {
+            log.warn("Backfill/recompute already running; ignoring recompute request");
+            return false;
+        }
+        worker.submit(() -> {
+            try {
+                anomaly.recomputeAll();
+            } catch (Exception e) {
+                log.error("Recompute failed: {}", e.getMessage());
+            } finally {
+                running.set(false);
+            }
+        });
+        return true;
     }
 
     /**

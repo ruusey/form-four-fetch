@@ -5,12 +5,17 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.formfour.dto.UnusualTxReasonCode;
@@ -18,6 +23,7 @@ import com.formfour.model.NonDerivativeTransaction;
 import com.formfour.model.OwnershipDocument;
 import com.formfour.model.ReportingOwner;
 import com.formfour.model.TickerBaseline;
+import com.formfour.repo.FormFourRepository;
 import com.formfour.repo.TickerBaselineRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -33,8 +39,12 @@ import lombok.extern.slf4j.Slf4j;
  * distributions and would pollute the baseline.
  *
  * <p>Anything outside the normal range is logged to the dedicated
- * {@code ABNORMAL_TX} logger (routed to its own file in logback.xml) so it can
- * be alerted on / grepped independently of normal INFO traffic.
+ * {@code ABNORMAL_TX} logger (routed to its own file in logback.xml).
+ *
+ * <p>{@link #score(OwnershipDocument)} (live path) and
+ * {@link #recomputeAll()} (chronological rebuild) are {@code synchronized} on
+ * this bean, so baseline read-modify-write is race-free even if a manual
+ * backfill runs while the poller is collecting.
  */
 @Service
 @RequiredArgsConstructor
@@ -45,6 +55,7 @@ public class AnomalyDetectionService {
     private static final Logger ABNORMAL = LoggerFactory.getLogger("ABNORMAL_TX");
 
     private final TickerBaselineRepository baselines;
+    private final FormFourRepository filings;
 
     /** |robust-Z| at or above this is considered outside the normal range. */
     @Value("${formfour.anomaly.z-threshold:3.5}")
@@ -62,12 +73,72 @@ public class AnomalyDetectionService {
     private static final double MAD_FLOOR_PCT = 0.03;
     private static final double MAD_FLOOR_LOG_PRICE = 0.3;
 
+    /** Abstracts where baselines are read from / written to during scoring. */
+    private interface BaselineStore {
+        TickerBaseline get(String key); // null if absent
+
+        void put(TickerBaseline b);
+    }
+
     /**
-     * Score every P/S non-derivative leg, set the document-level anomaly fields
-     * to the most abnormal leg, and roll each ticker baseline forward.
+     * Score every P/S leg of a live filing against the persisted baselines, set
+     * the document-level anomaly fields, and roll the baselines forward.
      * Mutates {@code doc}; call before persisting.
      */
-    public void score(OwnershipDocument doc) {
+    public synchronized void score(OwnershipDocument doc) {
+        BaselineStore live = new BaselineStore() {
+            public TickerBaseline get(String key) {
+                return baselines.findById(key).orElse(null);
+            }
+
+            public void put(TickerBaseline b) {
+                baselines.save(b);
+            }
+        };
+        scoreDoc(doc, live, true);
+    }
+
+    /**
+     * Rebuild every baseline and re-score every stored filing in chronological
+     * order (by period of report). This makes each doc's score an honest
+     * "as-of" signal (scored against only the history that preceded it) and
+     * leaves each baseline holding the most-recent observations by date —
+     * fixing the reverse-order pollution a newest-first backfill introduces.
+     */
+    public synchronized void recomputeAll() {
+        log.info("Anomaly recompute: rebuilding baselines + re-scoring all filings chronologically");
+        Map<String, TickerBaseline> cache = new HashMap<>();
+        BaselineStore mem = new BaselineStore() {
+            public TickerBaseline get(String key) {
+                return cache.get(key);
+            }
+
+            public void put(TickerBaseline b) {
+                cache.put(b.getId(), b);
+            }
+        };
+
+        int page = 0, size = 500, total = 0;
+        Page<OwnershipDocument> p;
+        do {
+            p = filings.findAll(PageRequest.of(page, size, Sort.by("periodOfReport").ascending()));
+            for (OwnershipDocument doc : p.getContent()) {
+                scoreDoc(doc, mem, false); // suppress abnormal log during bulk rebuild
+            }
+            if (!p.getContent().isEmpty()) filings.saveAll(p.getContent());
+            total += p.getNumberOfElements();
+            page++;
+        } while (p.hasNext());
+
+        baselines.deleteAll();
+        baselines.saveAll(cache.values());
+        log.info("Anomaly recompute complete: {} filings re-scored, {} baselines rebuilt",
+                total, cache.size());
+    }
+
+    // --- core scoring, shared by live + rebuild ---
+
+    private void scoreDoc(OwnershipDocument doc, BaselineStore store, boolean logAbnormal) {
         if (doc.getNonDerivativeTable() == null
                 || doc.getNonDerivativeTable().nonDerivativeTransaction == null) {
             return;
@@ -98,15 +169,13 @@ public class AnomalyDetectionService {
             double logPrice = Math.log1p(Math.max(0, price));
 
             String key = ticker + "|" + code;
-            TickerBaseline b = baselines.findById(key)
-                    .orElseGet(() -> new TickerBaseline(key, ticker, code));
+            TickerBaseline b = store.get(key);
+            if (b == null) b = new TickerBaseline(key, ticker, code);
 
             if (b.getCount() < minSamples) {
                 // Cold start: record but don't flag — no trained range yet.
                 reasons.add(UnusualTxReasonCode.INSUFFICIENT_HISTORY);
-                log.debug("Anomaly: {} {} building baseline ({}/{} samples), not scored",
-                        ticker, code, b.getCount(), minSamples);
-                update(b, logValue, pctHoldings, logPrice);
+                update(b, logValue, pctHoldings, logPrice, store);
                 continue;
             }
 
@@ -123,13 +192,15 @@ public class AnomalyDetectionService {
             double legScore = Math.min(100.0, maxZ / zThreshold * 60.0);
 
             if (!legReasons.isEmpty()) {
-                logAbnormal(ticker, owner, code, value, shares, price, pctHoldings,
-                        legScore, legReasons, b, zValue, zPct, zPrice);
+                if (logAbnormal) {
+                    logAbnormal(ticker, owner, code, value, shares, price, pctHoldings,
+                            legScore, legReasons, b, zValue, zPct, zPrice);
+                }
                 reasons.addAll(legReasons);
                 maxScore = Math.max(maxScore, legScore);
             }
 
-            update(b, logValue, pctHoldings, logPrice);
+            update(b, logValue, pctHoldings, logPrice, store);
         }
 
         if (!scoredAny) return;
@@ -161,7 +232,8 @@ public class AnomalyDetectionService {
     }
 
     /** Append an observation to the bounded reservoir and recompute robust stats. */
-    private void update(TickerBaseline b, double logValue, double pctHoldings, double logPrice) {
+    private void update(TickerBaseline b, double logValue, double pctHoldings, double logPrice,
+                        BaselineStore store) {
         push(b.getRecentLogValues(), logValue);
         push(b.getRecentPctHoldings(), pctHoldings);
         push(b.getRecentLogPrices(), logPrice);
@@ -175,7 +247,7 @@ public class AnomalyDetectionService {
 
         b.setCount(b.getCount() + 1);
         b.setUpdatedAt(Instant.now().toEpochMilli());
-        baselines.save(b);
+        store.put(b);
     }
 
     private void push(List<Double> reservoir, double v) {
