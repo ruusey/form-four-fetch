@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: form-four-fetch
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/sec-collector
+
+formfour:
+  # SEC fair-access policy requires a descriptive UA identifying the requester.
+  # https://www.sec.gov/os/accessing-edgar-data
+  user-agent: "OpenRealmAdmin ruuseywayne@gmail.com"
+  # How often (ms) to poll the EDGAR atom feed for new Form 4 filings.
+  poll-interval-ms: 30000
+  # Number of recent entries to request per poll (max 100 per SEC).
+  poll-count: 40
+  # Throttle between sequential EDGAR fetches (ms). SEC limits 10 req/sec.
+  request-delay-ms: 150
+  # EDGAR returns transient 503/429 under load; retry with exponential backoff.
+  max-retries: 4
+  retry-backoff-ms: 500
+
+logging:
+  level:
+    com.formfour: INFO
+    org.springframework.web.socket.config.WebSocketMessageBrokerStats: WARN
