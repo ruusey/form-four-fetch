@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Form 4 Fetch — API Explorer</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --border: #2a2f3a;
+    --text: #e6e8ec; --muted: #9aa3b2; --accent: #3498db; --green: #2ecc71;
+    --orange: #e67e22; --red: #e74c3c; --code: #11141a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.45;
+  }
+  header {
+    padding: 18px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  .wrap { display: grid; grid-template-columns: 340px 1fr; gap: 0; min-height: calc(100vh - 61px); }
+  .sidebar { border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+  .main { padding: 20px 24px; overflow-y: auto; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; margin-bottom: 14px;
+  }
+  .card h3 { margin: 0 0 4px; font-size: 14px; }
+  .card .path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .method { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 6px; }
+  .method.get { background: #14324a; color: #7fc4f0; }
+  .method.post { background: #3a2a14; color: #f0b87f; }
+  label { display: block; font-size: 11px; color: var(--muted); margin: 8px 0 3px; }
+  input {
+    width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 7px 9px; font-size: 13px;
+  }
+  .row { display: flex; gap: 8px; }
+  .row > div { flex: 1; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+    padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 10px;
+  }
+  button:hover { filter: brightness(1.1); }
+  button.danger { background: var(--red); }
+  button.ghost { background: var(--panel2); border: 1px solid var(--border); color: var(--text); }
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .status { font-size: 12px; color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 5px; }
+  .dot.on { background: var(--green); }
+  .dot.err { background: var(--red); }
+  .filing {
+    background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;
+  }
+  .filing.buy { border-left-color: var(--green); }
+  .filing.sell { border-left-color: var(--orange); }
+  .filing.abnormal { border-left-color: var(--red); background: #22171a; }
+  .filing .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .filing .tkr { font-weight: 700; font-size: 15px; }
+  .filing .iss { color: var(--muted); font-size: 12px; font-weight: 400; }
+  .filing .owner { font-size: 13px; margin: 2px 0 6px; }
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+  .badge.red { background: var(--red); color: #fff; }
+  .legs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .leg { font-size: 12px; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; }
+  .leg .p { color: var(--green); } .leg .s { color: var(--orange); }
+  .meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  a { color: var(--accent); }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+  pre { background: var(--code); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; font-size: 12px; max-height: 420px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 20px 0; }
+  .err { color: var(--red); }
+  .count { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📄 Form 4 Fetch</h1>
+  <span class="sub">SEC insider-trade API explorer · anomaly detection · live feed</span>
+</header>
+
+<div class="wrap">
+  <aside class="sidebar">
+    <div class="card">
+      <h3><span class="method get">GET</span>Saved filings</h3>
+      <div class="path">/api/form4</div>
+      <div class="row">
+        <div><label>page</label><input id="saved-page" type="number" value="0" min="0"></div>
+        <div><label>size</label><input id="saved-size" type="number" value="25" min="1"></div>
+      </div>
+      <button onclick="loadSaved()">Fetch</button>
+    </div>
+
+    <div class="card">
+      <h3><span class="method get">GET</span>Anomalies</h3>
+      <div class="path">/api/form4/anomalies</div>
+      <label>minScore (0–100)</label><input id="an-min" type="number" value="60" min="0" max="100">
+      <div class="row">
+        <div><label>page</label><input id="an-page" type="number" value="0" min="0"></div>
+        <div><label>size</label><input id="an-size" type="number" value="25" min="1"></div>
+      </div>
+      <button onclick="loadAnomalies()">Fetch</button>
+    </div>
+
+    <div class="card">
+      <h3><span class="method get">GET</span>By ticker</h3>
+      <div class="path">/api/form4/by-entity/{ticker}</div>
+      <label>ticker</label><input id="ent-ticker" placeholder="AAPL">
+      <label>page</label><input id="ent-page" type="number" value="0" min="0">
+      <button onclick="loadByEntity()">Fetch</button>
+    </div>
+
+    <div class="card">
+      <h3><span class="method get">GET</span>One filing (fetch + parse)</h3>
+      <div class="path">/api/form4/{cik}/{accession}</div>
+      <label>cik</label><input id="one-cik" placeholder="320193">
+      <label>accession</label><input id="one-acc" placeholder="0000320193-24-000123">
+      <button onclick="loadOne()">Fetch</button>
+    </div>
+
+    <div class="card">
+      <h3><span class="method get">GET</span>Recent feed (not persisted)</h3>
+      <div class="path">/api/form4/recent</div>
+      <button onclick="loadRecent()">Fetch</button>
+    </div>
+
+    <div class="card">
+      <h3><span class="method post">POST</span>Backfill — last N days</h3>
+      <div class="path">/api/form4/backfill/recent</div>
+      <label>days</label><input id="bf-days" type="number" value="30" min="1">
+      <button class="danger" onclick="backfillRecent()">Start backfill…</button>
+      <div class="meta">Asks for confirmation — kicks off a long throttled job.</div>
+    </div>
+
+    <div class="card">
+      <h3><span class="method post">POST</span>Backfill — one issuer</h3>
+      <div class="path">/api/form4/backfill/{cikOrTicker}</div>
+      <label>cik or ticker</label><input id="bf-id" placeholder="AAPL">
+      <label>max (optional)</label><input id="bf-max" type="number" placeholder="100" min="1">
+      <button class="danger" onclick="backfillIssuer()">Start backfill…</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar">
+      <strong id="view-title">Live feed</strong>
+      <span id="view-count" class="count"></span>
+      <span style="flex:1"></span>
+      <span class="status"><span id="ws-dot" class="dot"></span><span id="ws-label">WebSocket: disconnected</span></span>
+      <button class="ghost" id="ws-btn" onclick="toggleWs()">Connect live feed</button>
+      <button class="ghost" onclick="clearOut()">Clear</button>
+    </div>
+    <div id="results"><div class="empty">Pick an endpoint on the left, or connect the live feed to watch new Form 4s arrive.</div></div>
+    <details style="margin-top:16px"><summary>Raw JSON of last response</summary><pre id="raw">—</pre></details>
+  </main>
+</div>
+
+<!-- STOMP over SockJS for the live feed (graceful if CDN is unavailable) -->
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const results = $('results'), raw = $('raw');
+
+function setTitle(t, count) {
+  $('view-title').textContent = t;
+  $('view-count').textContent = count != null ? `· ${count} item${count === 1 ? '' : 's'}` : '';
+}
+function clearOut() { results.innerHTML = '<div class="empty">Cleared.</div>'; raw.textContent = '—'; setTitle('—'); }
+function showRaw(data) { raw.textContent = JSON.stringify(data, null, 2); }
+function showError(e) {
+  results.innerHTML = `<div class="err">Request failed: ${e.message || e}</div>`;
+  raw.textContent = String(e.stack || e);
+}
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  const text = await res.text();
+  let body; try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${typeof body === 'string' ? body : JSON.stringify(body)}`);
+  return body;
+}
+
+// --- filing rendering ---
+function num(v) { const n = Number(v); return isNaN(n) ? v : n.toLocaleString(); }
+function money(v) { const n = Number(v); return isNaN(n) ? v : '$' + n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+const VERB = { P:'BUY', S:'SELL', A:'Grant', M:'Exercise', X:'Exercise', C:'Convert', F:'Tax w/h', G:'Gift', D:'Disposed' };
+
+function legHtml(tx) {
+  const c = tx.transactionCoding && tx.transactionCoding.transactionCode;
+  const sh = tx.transactionAmounts && tx.transactionAmounts.transactionShares && tx.transactionAmounts.transactionShares.value;
+  const pr = tx.transactionAmounts && tx.transactionAmounts.transactionPricePerShare && tx.transactionAmounts.transactionPricePerShare.value;
+  const cls = c === 'P' ? 'p' : c === 'S' ? 's' : '';
+  const label = VERB[c] || ('Code ' + c);
+  return `<span class="leg"><span class="${cls}">${label}</span> ${sh ? num(sh) + ' sh' : ''}${pr ? ' @ ' + money(pr) : ''}${tx.transactionValue ? ' · ' + money(tx.transactionValue) : ''}</span>`;
+}
+
+function filingHtml(d) {
+  const ticker = d.filingEntity || (d.issuer && d.issuer.issuerTradingSymbol) || '?';
+  const issuer = (d.issuer && d.issuer.issuerName) || '';
+  const owner = (d.reportingOwner && d.reportingOwner[0] && d.reportingOwner[0].reportingOwnerId
+                 && d.reportingOwner[0].reportingOwnerId.rptOwnerName) || 'Unknown filer';
+  const legs = (d.nonDerivativeTable && d.nonDerivativeTable.nonDerivativeTransaction) || [];
+  const coded = legs.filter(t => t.transactionCoding && t.transactionCoding.transactionCode);
+  const abnormal = d.anomalyScore != null && d.anomalyScore > 0;
+  const hasBuy = coded.some(t => t.transactionCoding.transactionCode === 'P');
+  const hasSell = coded.some(t => t.transactionCoding.transactionCode === 'S');
+  let cls = 'filing';
+  if (abnormal) cls += ' abnormal';
+  else if (hasBuy && !hasSell) cls += ' buy';
+  else if (hasSell && !hasBuy) cls += ' sell';
+
+  const link = edgarLink(d.id);
+  return `<div class="${cls}">
+    <div class="head">
+      <div><span class="tkr">${ticker}</span> <span class="iss">${issuer}</span></div>
+      ${abnormal ? `<span class="badge red">⚠️ ANOMALY ${Math.round(d.anomalyScore)}/100</span>` : ''}
+    </div>
+    <div class="owner">${owner}</div>
+    ${abnormal && d.anomalyReasons ? `<div class="meta">Reasons: ${d.anomalyReasons.filter(r => r !== 'NORMAL' && r !== 'INSUFFICIENT_HISTORY').join(', ') || '—'}</div>` : ''}
+    <div class="legs">${coded.map(legHtml).join('') || '<span class="meta">No P/S legs</span>'}</div>
+    <div class="meta">
+      ${d.transactionValue ? 'Total ' + money(d.transactionValue) + ' · ' : ''}
+      ${d.periodOfReport || ''}
+      ${link ? ` · <a href="${link}" target="_blank" rel="noopener">EDGAR ↗</a>` : ''}
+    </div>
+    <details><summary>Raw</summary><pre>${escapeHtml(JSON.stringify(d, null, 2))}</pre></details>
+  </div>`;
+}
+
+function edgarLink(id) {
+  if (!id || typeof id !== 'string') return null;
+  const i = id.lastIndexOf('-');
+  if (i < 0) return null;
+  const cik = id.slice(0, i), acc = id.slice(i + 1);
+  if (acc.length !== 18) return null;
+  const dashed = acc.slice(0,10) + '-' + acc.slice(10,12) + '-' + acc.slice(12);
+  return `https://www.sec.gov/Archives/edgar/data/${cik}/${acc}/${dashed}-index.htm`;
+}
+function escapeHtml(s) { return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function renderFilings(title, docs) {
+  setTitle(title, docs.length);
+  results.innerHTML = docs.length ? docs.map(filingHtml).join('') : '<div class="empty">No results.</div>';
+}
+// A Spring Page has {content, totalElements, number, totalPages}; unwrap it.
+function pageContent(body) { return Array.isArray(body) ? body : (body && body.content) || []; }
+
+// --- endpoint handlers ---
+async function loadSaved() {
+  try {
+    const b = await api(`/api/form4?page=${$('saved-page').value}&size=${$('saved-size').value}`);
+    showRaw(b); renderFilings(`Saved filings (page ${b.number ?? 0}/${(b.totalPages ?? 1) - 1}, ${b.totalElements ?? '?'} total)`, pageContent(b));
+  } catch (e) { showError(e); }
+}
+async function loadAnomalies() {
+  try {
+    const b = await api(`/api/form4/anomalies?minScore=${$('an-min').value}&page=${$('an-page').value}&size=${$('an-size').value}`);
+    showRaw(b); renderFilings(`Anomalies ≥ ${$('an-min').value} (${b.totalElements ?? '?'} total)`, pageContent(b));
+  } catch (e) { showError(e); }
+}
+async function loadByEntity() {
+  const t = $('ent-ticker').value.trim();
+  if (!t) return;
+  try {
+    const b = await api(`/api/form4/by-entity/${encodeURIComponent(t)}?page=${$('ent-page').value}`);
+    showRaw(b); renderFilings(`Filings for ${t.toUpperCase()}`, pageContent(b));
+  } catch (e) { showError(e); }
+}
+async function loadOne() {
+  const cik = $('one-cik').value.trim(), acc = $('one-acc').value.trim();
+  if (!cik || !acc) return;
+  try {
+    const b = await api(`/api/form4/${encodeURIComponent(cik)}/${encodeURIComponent(acc)}`);
+    showRaw(b); renderFilings(`Filing ${cik}/${acc}`, b ? [b] : []);
+  } catch (e) { showError(e); }
+}
+async function loadRecent() {
+  try {
+    const b = await api('/api/form4/recent');
+    showRaw(b);
+    setTitle('Recent feed (parsed, not persisted)', b.length);
+    results.innerHTML = b.length ? b.map(e => `<div class="filing">
+      <div class="head"><div><span class="tkr">Form ${e.formType}</span> <span class="iss">${e.title || ''}</span></div></div>
+      <div class="meta">CIK ${e.cik} · ${e.accessionDashed} · ${e.filedAt || ''}
+        · <a href="${edgarLink(e.cik + '-' + e.accessionNoDashes)}" target="_blank" rel="noopener">EDGAR ↗</a></div>
+    </div>`).join('') : '<div class="empty">Feed empty.</div>';
+  } catch (e) { showError(e); }
+}
+async function backfillRecent() {
+  const days = $('bf-days').value;
+  if (!confirm(`Start a throttled backfill of the last ${days} days of Form 4s?\n\nThis is a long-running background job (~1–2h on first run).`)) return;
+  try {
+    const b = await api(`/api/form4/backfill/recent?days=${days}`, { method: 'POST' });
+    showRaw(b); flashResult(b);
+  } catch (e) { showError(e); }
+}
+async function backfillIssuer() {
+  const id = $('bf-id').value.trim();
+  if (!id) return;
+  const max = $('bf-max').value;
+  if (!confirm(`Start a backfill for "${id}"${max ? ' (max ' + max + ')' : ''}?`)) return;
+  try {
+    const b = await api(`/api/form4/backfill/${encodeURIComponent(id)}${max ? '?max=' + max : ''}`, { method: 'POST' });
+    showRaw(b); flashResult(b);
+  } catch (e) { showError(e); }
+}
+function flashResult(b) {
+  setTitle('Backfill');
+  results.innerHTML = `<div class="filing ${b.started ? 'buy' : 'sell'}">
+    <div class="head"><div class="tkr">${b.started ? '✅ Started' : '⏳ Not started'}</div></div>
+    <div class="meta">${b.message || ''}</div></div>`;
+}
+
+// --- live WebSocket feed ---
+let stomp = null, live = [];
+function toggleWs() { stomp ? disconnectWs() : connectWs(); }
+function connectWs() {
+  if (typeof SockJS === 'undefined' || typeof Stomp === 'undefined') {
+    setWs('err', 'WebSocket libs unavailable (offline?)'); return;
+  }
+  setWs('', 'connecting…');
+  stomp = Stomp.over(new SockJS('/ws'));
+  stomp.debug = null;
+  stomp.connect({}, () => {
+    setWs('on', 'connected'); $('ws-btn').textContent = 'Disconnect';
+    live = []; setTitle('Live feed', 0);
+    results.innerHTML = '<div class="empty">Connected — waiting for new Form 4 filings…</div>';
+    stomp.subscribe('/topic/filings', msg => {
+      try {
+        const d = JSON.parse(msg.body);
+        live.unshift(d);
+        if (live.length > 100) live.pop();
+        renderFilings('Live feed', live);
+        showRaw(d);
+      } catch (e) { console.error(e); }
+    });
+  }, () => setWs('err', 'connection error'));
+}
+function disconnectWs() {
+  if (stomp) try { stomp.disconnect(); } catch {}
+  stomp = null; setWs('', 'disconnected'); $('ws-btn').textContent = 'Connect live feed';
+}
+function setWs(state, label) {
+  const dot = $('ws-dot'); dot.className = 'dot' + (state ? ' ' + state : '');
+  $('ws-label').textContent = 'WebSocket: ' + label;
+}
+</script>
+</body>
+</html>
