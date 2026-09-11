@@ -198,6 +198,11 @@
         <div class="hint" style="margin-bottom:10px">Rebuilds every baseline chronologically and re-scores all filings. Run after a big backfill.</div>
         <button class="btn danger" onclick="adminRecompute()">Recompute…</button>
       </div>
+      <div class="card">
+        <h3>Test Discord webhook</h3>
+        <div class="hint" style="margin-bottom:10px">Posts a test message to confirm the webhook + shows Discord's response.</div>
+        <button class="btn" onclick="post('/api/form4/discord/test')">Send test</button>
+      </div>
     </div>
     <div id="admin-out" style="margin-top:14px"></div>
   </section>
@@ -427,7 +432,8 @@ async function adminRecompute(){
 }
 async function post(url){
   try{ const b=await api(url,{method:'POST'}); showRaw(b);
-    $('admin-out').innerHTML=`<div class="card"><h3>${b.started?'✅ Started':'⏳ Not started'}</h3><div class="hint">${b.message||''}</div></div>`;
+    const ok = b.started ?? b.ok ?? false;
+    $('admin-out').innerHTML=`<div class="card"><h3>${ok?'✅ OK':'⚠️ '+(b.status??'Not started')}</h3><div class="hint">${b.message||''}</div></div>`;
     setTimeout(loadStats, 3000);
   }catch(e){ $('admin-out').innerHTML=`<div class="err">${e.message}</div>`; }
 }

@@ -2,6 +2,10 @@ server:
   port: 8085
 
 spring:
+  # Load git-ignored local overrides if present (e.g. secrets like the Discord
+  # webhook). Optional: absent on fresh checkouts / CI, which is fine.
+  config:
+    import: "optional:file:./local.yml"
   application:
     name: form-four-fetch
   data:

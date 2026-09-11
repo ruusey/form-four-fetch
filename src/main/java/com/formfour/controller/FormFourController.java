@@ -28,6 +28,7 @@ public class FormFourController {
     @Autowired private FilingFeedService feed;
     @Autowired private BackfillService backfill;
     @Autowired private TickerMapService tickerMap;
+    @Autowired private com.formfour.service.DiscordNotifier discord;
 
     @GetMapping
     public Page<OwnershipDocument> list(
@@ -66,6 +67,16 @@ public class FormFourController {
     @GetMapping("/tickers")
     public List<com.formfour.dto.TickerSummary> tickers() {
         return formFour.tickersWithData();
+    }
+
+    /** Send a test message to the configured Discord webhook. */
+    @PostMapping("/discord/test")
+    public ResponseEntity<Map<String, Object>> discordTest() {
+        int s = discord.sendTest();
+        String msg = s == -2 ? "Discord disabled — no webhook configured (set it in local.yml)"
+                : s == -1 ? "Send failed — see server logs"
+                : (s / 100 == 2 ? "Sent OK (" + s + ") — check your channel" : "Discord returned " + s);
+        return ResponseEntity.ok(Map.of("status", s, "ok", s / 100 == 2, "message", msg));
     }
 
     /** Backfill/recompute progress for the dashboard header + monitoring. */

@@ -15,6 +15,8 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -69,6 +71,42 @@ public class DiscordNotifier {
 
     private boolean active() {
         return enabled && webhookUrl != null && !webhookUrl.isBlank();
+    }
+
+    @PostConstruct
+    void logState() {
+        if (active()) {
+            log.info("Discord notifications ENABLED — new Form 4s will be posted to the webhook");
+        } else {
+            log.warn("Discord notifications DISABLED — set formfour.discord.webhook-url "
+                    + "(e.g. in local.yml or the DISCORD_WEBHOOK_URL env var) to enable");
+        }
+    }
+
+    /**
+     * Send a one-off test message. Returns the Discord HTTP status (2xx = ok),
+     * -2 if no webhook is configured, or -1 if the request threw.
+     */
+    public int sendTest() {
+        if (!active()) return -2;
+        try {
+            ObjectNode p = json.createObjectNode();
+            p.put("content", "✅ form-four-fetch webhook test — notifications are working.");
+            HttpRequest req = HttpRequest.newBuilder(URI.create(webhookUrl))
+                    .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(15))
+                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(p)))
+                    .build();
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() / 100 != 2) {
+                log.warn("Discord test -> {} : {}", resp.statusCode(),
+                        resp.body().substring(0, Math.min(200, resp.body().length())));
+            }
+            return resp.statusCode();
+        } catch (Exception e) {
+            log.warn("Discord test failed: {}", e.getMessage());
+            return -1;
+        }
     }
 
     /** Enqueue a batch of new filings for posting. Returns immediately. */
